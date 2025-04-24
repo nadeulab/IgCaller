@@ -1842,6 +1842,7 @@ def collapseSequences(information):
 			seqInDictToMatch = seq
 		elif seqIs == "sequence":
 			for seqInDict in seqDict:
+				if seqDict[seqInDict][16] == "NA": continue
 				if len(seq) == len(seqInDict):
 					allNucleotidesEqual = "yes"
 					for pos in list(range(len(seq))):
