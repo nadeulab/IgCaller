@@ -3279,7 +3279,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			AllGenesBedToOpen = inputsFolder+"/hg19/dicts/AllRegionsAndGenes_hg19.bed"
 		elif genomeVersion == "hg38":
 			AllGenesBedToOpen = inputsFolder+"/hg38/dicts/AllRegionsAndGenes_hg38.bed"
-
+		
 		breakAisIG = "no"
 		if geneToAnalyze != "tcr" and chrA == chrom+"14" and int(positionA) >= int(chrom14_IGH[0]) and int(positionA) <= int(chrom14_IGH[1]): geneID = "IGH"; locusID = "IGH"; breakAisIG = "IG"
 		elif geneToAnalyze != "tcr" and chrA == chrom+"22" and int(positionA) >= int(chrom22_IGL[0]) and int(positionA) <= int(chrom22_IGL[1]): geneID = "IGL"; locusID = "IGL"; breakAisIG = "IG"
