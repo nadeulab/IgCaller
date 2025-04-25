@@ -3271,7 +3271,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		mapQualReport = str(round(mean(quals),1))+" ("+str(min(quals))+"-"+str(max(quals))+")"
 		readNamesReport = ",".join(set(i[12].split(",")))
 		scoreNormal = i[13]
-
+		
 		## RepeatMasker and GeneID:
 		minDistance = 250000
 		repeatMasker = "none"
@@ -3279,14 +3279,14 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			AllGenesBedToOpen = inputsFolder+"/hg19/dicts/AllRegionsAndGenes_hg19.bed"
 		elif genomeVersion == "hg38":
 			AllGenesBedToOpen = inputsFolder+"/hg38/dicts/AllRegionsAndGenes_hg38.bed"
-		
+
 		breakAisIG = "no"
-		if chrA == chrom+"14" and int(positionA) >= int(chrom14_IGH[0]) and int(positionA) <= int(chrom14_IGH[1]): geneID = "IGH"; locusID = "IGH"; breakAisIG = "IG"
-		elif chrA == chrom+"22" and int(positionA) >= int(chrom22_IGL[0]) and int(positionA) <= int(chrom22_IGL[1]): geneID = "IGL"; locusID = "IGL"; breakAisIG = "IG"
-		elif chrA == chrom+"2" and int(positionA) >= int(chrom2_IGK[0]) and int(positionA) <= int(chrom2_IGK[1]): geneID = "IGK"; locusID = "IGK"; breakAisIG = "IG"
-		elif chrA == chrom+"14" and int(positionA) >= int(chrom14_TRA_TRD[0]) and int(positionA) <= int(chrom14_TRA_TRD[1]): geneID = "TRA_TRD"; locusID = "TRA_TRD"; breakAisIG = "TCR"
-		elif chrA == chrom+"7" and int(positionA) >= int(chrom7_TRB[0]) and int(positionA) <= int(chrom7_TRB[1]): geneID = "TRB"; locusID = "TRB"; breakAisIG = "TCR"
-		elif chrA == chrom+"7" and int(positionA) >= int(chrom7_TRG[0]) and int(positionA) <= int(chrom7_TRG[1]): geneID = "TRG"; locusID = "TRG"; breakAisIG = "TCR"
+		if geneToAnalyze != "tcr" and chrA == chrom+"14" and int(positionA) >= int(chrom14_IGH[0]) and int(positionA) <= int(chrom14_IGH[1]): geneID = "IGH"; locusID = "IGH"; breakAisIG = "IG"
+		elif geneToAnalyze != "tcr" and chrA == chrom+"22" and int(positionA) >= int(chrom22_IGL[0]) and int(positionA) <= int(chrom22_IGL[1]): geneID = "IGL"; locusID = "IGL"; breakAisIG = "IG"
+		elif geneToAnalyze != "tcr" and chrA == chrom+"2" and int(positionA) >= int(chrom2_IGK[0]) and int(positionA) <= int(chrom2_IGK[1]): geneID = "IGK"; locusID = "IGK"; breakAisIG = "IG"
+		elif geneToAnalyze != "ig" and chrA == chrom+"14" and int(positionA) >= int(chrom14_TRA_TRD[0]) and int(positionA) <= int(chrom14_TRA_TRD[1]): geneID = "TRA_TRD"; locusID = "TRA_TRD"; breakAisIG = "TCR"
+		elif geneToAnalyze != "ig" and chrA == chrom+"7" and int(positionA) >= int(chrom7_TRB[0]) and int(positionA) <= int(chrom7_TRB[1]): geneID = "TRB"; locusID = "TRB"; breakAisIG = "TCR"
+		elif geneToAnalyze != "ig" and chrA == chrom+"7" and int(positionA) >= int(chrom7_TRG[0]) and int(positionA) <= int(chrom7_TRG[1]): geneID = "TRG"; locusID = "TRG"; breakAisIG = "TCR"
 		if breakAisIG != "no":
 			AllGenesBed = open(AllGenesBedToOpen, "r")
 			for AllGenesBedLine in AllGenesBed:
@@ -3317,12 +3317,12 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 					break
 
 		breakBisIG = "no"
-		if chrB == chrom+"14" and int(positionB) >= int(chrom14_IGH[0]) and int(positionB) <= int(chrom14_IGH[1]): geneID = geneID+" - IGH"; locusID = locusID+" - IGH"; breakBisIG = "IG"
-		elif chrB == chrom+"22" and int(positionB) >= int(chrom22_IGL[0]) and int(positionB) <= int(chrom22_IGL[1]): geneID = geneID+" - IGL"; locusID = locusID+" - IGL"; breakBisIG = "IG"
-		elif chrB == chrom+"2" and int(positionB) >= int(chrom2_IGK[0]) and int(positionB) <= int(chrom2_IGK[1]): geneID = geneID+" - IGK"; locusID = locusID+" - IGK"; breakBisIG = "IG"
-		elif chrB == chrom+"14" and int(positionB) >= int(chrom14_TRA_TRD[0]) and int(positionB) <= int(chrom14_TRA_TRD[1]): geneID = geneID+" - TRA_TRD"; locusID = locusID+" - TRA_TRD"; breakBisIG = "TCR"
-		elif chrB == chrom+"7" and int(positionB) >= int(chrom7_TRB[0]) and int(positionB) <= int(chrom7_TRB[1]): geneID = geneID+" - TRB"; locusID = locusID+" - TRB"; breakBisIG = "TCR"
-		elif chrB == chrom+"7" and int(positionB) >= int(chrom7_TRG[0]) and int(positionB) <= int(chrom7_TRG[1]): geneID = geneID+" - TRG"; locusID = locusID+" - TRG"; breakBisIG = "TCR"
+		if geneToAnalyze != "tcr" and chrB == chrom+"14" and int(positionB) >= int(chrom14_IGH[0]) and int(positionB) <= int(chrom14_IGH[1]): geneID = geneID+" - IGH"; locusID = locusID+" - IGH"; breakBisIG = "IG"
+		elif geneToAnalyze != "tcr" and chrB == chrom+"22" and int(positionB) >= int(chrom22_IGL[0]) and int(positionB) <= int(chrom22_IGL[1]): geneID = geneID+" - IGL"; locusID = locusID+" - IGL"; breakBisIG = "IG"
+		elif geneToAnalyze != "tcr" and chrB == chrom+"2" and int(positionB) >= int(chrom2_IGK[0]) and int(positionB) <= int(chrom2_IGK[1]): geneID = geneID+" - IGK"; locusID = locusID+" - IGK"; breakBisIG = "IG"
+		elif geneToAnalyze != "ig" and chrB == chrom+"14" and int(positionB) >= int(chrom14_TRA_TRD[0]) and int(positionB) <= int(chrom14_TRA_TRD[1]): geneID = geneID+" - TRA_TRD"; locusID = locusID+" - TRA_TRD"; breakBisIG = "TCR"
+		elif geneToAnalyze != "ig" and chrB == chrom+"7" and int(positionB) >= int(chrom7_TRB[0]) and int(positionB) <= int(chrom7_TRB[1]): geneID = geneID+" - TRB"; locusID = locusID+" - TRB"; breakBisIG = "TCR"
+		elif geneToAnalyze != "ig" and chrB == chrom+"7" and int(positionB) >= int(chrom7_TRG[0]) and int(positionB) <= int(chrom7_TRG[1]): geneID = geneID+" - TRG"; locusID = locusID+" - TRG"; breakBisIG = "TCR"
 		if breakBisIG != "no":
 			AllGenesBed = open(AllGenesBedToOpen, "r")
 			for AllGenesBedLine in AllGenesBed:
