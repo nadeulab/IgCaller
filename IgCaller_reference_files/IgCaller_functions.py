@@ -876,7 +876,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 					ANNOT_TABLE_JV.close()
 
 					if len(readsSpanningJV) > 0:
-						readNamesFileTxt = miniBamT.replace("miniBam.bam", "_readNameReadsSpanningJV.txt")
+						readNamesFileTxt = miniBamT.replace(".bam", "_readNameReadsSpanningJV.txt")
 						readNamesFile = open(readNamesFileTxt, "w")
 						readNamesFile.write("\n".join(readsSpanningJV))
 						readNamesFile.close()
@@ -906,7 +906,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 					ANNOT_TABLE_JV.close()
 
 					if len(readsSpanningBreak) > 0:
-						readNamesFileTxt = miniBamT.replace("miniBam.bam", "_readNameReadsSpanningBreak.txt")
+						readNamesFileTxt = miniBamT.replace(".bam", "_readNameReadsSpanningBreak.txt")
 						readNamesFile = open(readNamesFileTxt, "w")
 						readNamesFile.write("\n".join(readsSpanningBreak))
 						readNamesFile.close()
