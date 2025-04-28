@@ -2631,15 +2631,17 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						##### D: same J-V, one without split-reads
 						##### E: 2 genes in common -also considering IgBlast annotation- and one with CDR3 = NA
 						##### F: same as D but considering V-gene family in the comparison instead of V-gene
-						##### G: same J-V, one with 5x spl_ins
+						##### G: same J-V, and same V seq or V seq within
+						##### H: same J-V, one with 5x spl_ins
 						condiA = len(common) == 2 and (line[20] in dict_cdr3 or dict_cdr3 in line[20])
 						condiB = (len(common) == 2 or len(common2) >= 2) and abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.8
 						condiC = nw[0].startswith("IGHJ") and line[4] == trip[keys][3] and line[5] == trip[keys][4] and ((line[20] in dict_cdr3 or dict_cdr3 in line[20]) or (abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.9))
 						condiD = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
 						condiE = (len(common) == 2 or len(common2) >= 2) and (line[20] == "NA" or dict_cdr3 == "NA")
 						condiF = ((nw[0] == ts[0] and nw[-1].split("-")[0] == ts[-1].split("-")[0]) or (nw2[0] == ts2[0] and nw2[-1].split("-")[0] == ts2[-1].split("-")[0])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
-						condiG = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and ((spl_ins*5 < dict_spl_ins) or dict_spl_ins*5 < spl_ins)
-						if condiA or condiB or condiC or condiD or condiE or condiF or condiG:
+						condiG = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (line[13] in trip[keys][12] or trip[keys][12] in line[13])
+						condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (spl_ins*5 < dict_spl_ins or dict_spl_ins*5 < spl_ins)
+						if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH:
 							if len(ts) > len(nw): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
 								pr = 1
 							elif len(ts) < len(nw): # if the other way around... keep the new one
