@@ -847,7 +847,8 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 		
 		if round == "second" and phaseReadsBasedOnMutations == "yes":
 			readsAlreadyUsed = i[16].split(",")+i[17].split(",")+i[18].split(",")
-			readsPhasedUsingMutations = []
+			readsPhasedUsingMutations = [] # to keep reads correctly phased using mutations
+			readPairsRemovedFromPhased = [] # to keep reads removed from phasing because they lack mutations or the start of the read is found before the breakpoint
 
 		for z in [4,7]: # to iterate over positions for J and V
 			if "Kde" in i[0] or "RSS" in i[0]: # no sequence to retrieve
@@ -1124,11 +1125,14 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 											
 											elif vp[4][k] in ("A", "C", "G", "T", "N", "*", "#", ">", "<"):
 												if vp[4][k] == mutPhased.split("_")[1]:
-													readNamePhaseMutTemp.append(vp[6].split(",")[readIndex]) # append readname to list if it has seen the mutation
+													if vp[6].split(",")[readIndex] not in readPairsRemovedFromPhased:
+														readNamePhaseMutTemp.append(vp[6].split(",")[readIndex]) # append readname to readNamePhaseMutTemp if it has seen the mutation
+												else:
+													readPairsRemovedFromPhased.append(vp[6].split(",")[readIndex]) # append readname to readPairsRemovedFromPhased if it has not seen the mutation
 												k += 1
 												readIndex += 1 # sum 1 read position
 											
-											else: # ^, $, etc.
+											else: # ^ or $
 												if vp[4][k] == "^": # to include first base (^6A) (6=ASCI quality; A base of interest)
 													k += 2
 												else: # last base in read is encoded A$ => A is kept in the previous round, here skip $
@@ -1137,7 +1141,6 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 
 									# make sure phased reads do not extend beyond the breakpoint of the V gene
 									if len(readNamePhaseMutTemp) > 0:
-										readPairsRemovedFromPhased = []
 										breakInV = i[8] if (GENE in ["IGL", "TRA", "TRD"] or (GENE == "TRB" and i[1] == "Deletion") or (GENE == "IGK" and i[1] == "Inversion2")) else i[7]
 
 										readNamesFileTxt = miniBamT.replace("miniBam.bam", "_readNamePhaseMut.txt")
@@ -1391,7 +1394,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 			i[12] = temporary[2]
 			i[13] = temporary[3]
 			i[14] = temporary[4]
-			readsPhasedUsingMutationsString = ",".join(rName for rName in set(readsPhasedUsingMutations) if rName not in readsAlreadyUsed)
+			readsPhasedUsingMutationsString = ",".join(rName for rName in set(readsPhasedUsingMutations) if rName not in readsAlreadyUsed and rName not in readPairsRemovedFromPhased)
 			countReadsPhasedMutations = 0 if readsPhasedUsingMutationsString == "" else len(readsPhasedUsingMutationsString.split(","))
 			i[10:10] = [countReadsPhasedMutations]
 			i.append(readsPhasedUsingMutationsString)
@@ -2462,9 +2465,11 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 		pr = 0
 		mech = line[1]
 		spl_ins = line[22]
+		spl_ins_phased = line[22]+line[10]*2
 		mq = float(line[23].split(" ")[0].replace("NA", "0"))
 		phasing_pct = 0 if line[15] == "NA" else float(line[15].split("/")[0])/float(line[15].split(" ")[0].split("/")[1])*100 if line[15].split(" ")[0].split("/")[1] != "0" else 100
 		muts_low_confidence = 300 if line[15] == "NA" else float(line[15].split(" - ")[1])
+		ident = 100 if line[17] == "NA" else float(line[17])
 
 		# 1) Hard filters
 		## Mechanism
@@ -2542,12 +2547,14 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 				if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
 						dict_spl_ins = trip[keys][21]
+						dict_spl_ins_phased = trip[keys][21]+trip[keys][9]*2
 						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
 						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
 						dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
-
+						dict_ident = 100 if trip[keys][16] == "NA" else float(trip[keys][16])
+						
 						if line[20] == trip[keys][19]:
-							if spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25: # if similar scores
+							if (spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25) or (ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.75 and spl_ins_phased <= dict_spl_ins_phased*1.25): # if similar scores
 								if phasing_pct > dict_phasing_pct: # based on phasing
 									del trip[keys]
 								elif dict_phasing_pct > phasing_pct:
@@ -2560,11 +2567,19 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 									del trip[keys]
 								elif mq < 10 and dict_mq > 50:
 									pr = 1
+								elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased:
+									del trip[keys]
+								elif ident < 96 and dict_ident < 96 and spl_ins_phased < dict_spl_ins_phased:
+									pr = 1
 								elif spl_ins > dict_spl_ins: # based on score
 									del trip[keys]
 								elif spl_ins < dict_spl_ins: 
 									pr = 1
+							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.45: # if high-depth, prioritize phasing over score
+								del trip[keys]
 							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.45: # if high-depth, prioritize phasing over score
+								del trip[keys]
+							elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased: # different scores, keep highest score
 								del trip[keys]
 							elif spl_ins > dict_spl_ins: # different scores, keep highest score
 								del trip[keys]
