@@ -133,7 +133,7 @@ parser.add_argument('-prm', '--phaseReadsBasedOnMutations',
 					action = "store",
 					default = "yes",
 					choices = ['no', 'yes'],
-					help = "Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score, mapping quality and predefined filtering [no/yes, default = yes]")
+					help = "Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score and mapping quality [no/yes, default = yes]")
 
 parser.add_argument('-mnns', '--minimumNumberOfNucleotidesSoft', 
 					dest = "minimumNumberOfNucleotidesSoft",
