@@ -448,7 +448,7 @@ if originalBamN is not None:
 ## Main output file:
 filterOutputFile = wkDir+"/"+originalBamT.split("/")[-1].replace(".bam", "_output_filtered.tsv")
 SUMM = open(filterOutputFile, "w")
-header = "Analysis\tAnnotation\tMechanism\tScore\tMQ\tNum_Reads\tV-PhaseInfo\tV-gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
+header = "Analysis\tAnnotation\tMechanism\tScore\tMQ\tNum_reads\tV_gene_phase_info\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
 SUMM.write(header+"\n")
 
 # Iterate over each IG/TCR locus:
@@ -548,7 +548,7 @@ if runOnlyOncogenicRearrangements == "no":
 			
 			# 20) Save output and clean:
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
-			Vseq.write("Genes\tMechanisms\tN_split\tN_insertSize\tStart_J\tEnd_J\tN_split_rescued_J\tStart_V\tEnd_V\tN_split_rescued_V\tN_phased_rescued\tSeq_J\tSeq_D\tSeq_V\tSeq_V_normal\tSeq\tV-gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tScore\tMQ\tV-PhaseInfo"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
+			Vseq.write("Genes\tMechanisms\tN_split\tN_insertSize\tStart_J\tEnd_J\tN_split_rescued_J\tStart_V\tEnd_V\tN_split_rescued_V\tN_phased_rescued\tSeq_J\tSeq_D\tSeq_V\tSeq_V_normal\tSeq\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tScore\tMQ\tV_gene_phase_info"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 			if len(information) > 0:
 				indxs = [21]+list(range(1,15))+list(range(16,20))+[20]+list(range(22,24))+[15]
 				if reportReadNames == "yes": indxs.append(24)
@@ -567,7 +567,7 @@ if runOnlyOncogenicRearrangements == "no":
 			class_switch, class_switch_filt, reductionMeans = classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR)
 
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
-			Vseq.write("Genes\tClass\tScore\tMQ\tNum_reads\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tPvalue\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
+			Vseq.write("Genes\tClass\tScore\tMQ\tNum_reads\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tP_value\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 			if len(class_switch) > 0:
 				indxs = [0,1,2,3,4,5,6,7,8]
 				if reportReadNames == "yes": indxs.append(9)
