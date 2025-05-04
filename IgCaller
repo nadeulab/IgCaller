@@ -448,7 +448,7 @@ if originalBamN is not None:
 ## Main output file:
 filterOutputFile = wkDir+"/"+originalBamT.split("/")[-1].replace(".bam", "_output_filtered.tsv")
 SUMM = open(filterOutputFile, "w")
-header = "Analysis\tAnnotation\tMechanism\tScore\tMQ\tV-PhaseInfo\tV-gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
+header = "Analysis\tAnnotation\tMechanism\tScore\tMQ\tNum_Reads\tV-PhaseInfo\tV-gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
 SUMM.write(header+"\n")
 
 # Iterate over each IG/TCR locus:
@@ -556,29 +556,29 @@ if runOnlyOncogenicRearrangements == "no":
 			Vseq.close()
 
 			if len(trip) != 0:
-				indxs = [0,21,22,14,16,17,18,19,15]
+				indxs = [0,21,22,24,14,16,17,18,19,15]
 				if reportReadNames == "yes": indxs.append(23)
 				SUMM.write("\n".join([GENE+"\t"+trip[item][20]+"\t"+'\t'.join(map(str, map(trip[item].__getitem__, indxs))) for item in trip])+"\n")
 			else:
-				SUMM.write(GENE+"\tNo rearrangement found"+"\tNA"*(9 if reportReadNames == "no" else 10)+"\n")
+				SUMM.write(GENE+"\tNo rearrangement found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
 			
 		elif GENE == "CSR":
 			# 21) Study coverage around CSR and return info:
 			class_switch, class_switch_filt, reductionMeans = classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR)
 
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
-			Vseq.write("Genes\tClass\tScore\tMQ\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tPvalue\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
+			Vseq.write("Genes\tClass\tScore\tMQ\tNum_reads\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tPvalue\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 			if len(class_switch) > 0:
-				indxs = [0,1,2,3,4,5,6,7]
-				if reportReadNames == "yes": indxs.append(8)
+				indxs = [0,1,2,3,4,5,6,7,8]
+				if reportReadNames == "yes": indxs.append(9)
 				Vseq.write("\n".join(['\t'.join(map(str, (item[i] for i in indxs))) for item in class_switch])+"\n")
 			Vseq.close()
 			
 			if len(class_switch_filt) == 0:
-				SUMM.write("CSR\tIGHM\tNo CSR found"+"\tNA"*(8 if reportReadNames == "no" else 9)+"\n")
+				SUMM.write("CSR\tIGHM\tNo CSR found"+"\tNA"*(9 if reportReadNames == "no" else 10)+"\n")
 			else:
 				class_switch_filt = class_switch_filt[reductionMeans.index(max(reductionMeans))] # keep only the one with highest reduction/score
-				SUMM.write("\t".join(["CSR", class_switch_filt[0], class_switch_filt[1], str(class_switch_filt[2]), class_switch_filt[3]]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+class_switch_filt[8])+"\n")
+				SUMM.write("\t".join(["CSR", class_switch_filt[0], class_switch_filt[1], str(class_switch_filt[2]), class_switch_filt[3], str(class_switch_filt[4])]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+class_switch_filt[9])+"\n")
 		
 		# 22) Clean intermediate files:
 		subprocess.call("rm "+wkDir+"/tmp/*", shell=True)
@@ -592,7 +592,7 @@ Vseq.write("\n".join(translocationsALL)+"\n")
 Vseq.close()
 
 if len(translocationsPASS) > 0: SUMM.write("\n".join(translocationsPASS)+"\n")
-else: SUMM.write("Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement\tNo rearrangements found"+"\tNA"*(9 if reportReadNames == "no" else 10)+"\n")
+else: SUMM.write("Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement\tNo rearrangements found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
 
 subprocess.call("rm "+wkDir+"/tmp/*", shell=True)
 
