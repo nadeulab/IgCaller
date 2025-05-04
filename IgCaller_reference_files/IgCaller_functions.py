@@ -2465,7 +2465,8 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 		pr = 0
 		mech = line[1]
 		spl_ins = line[22]
-		spl_ins_phased = line[22]+line[10]*2
+		spl_ins_phased = len(line[24].split(",")) # get total number of reads
+		line.append(spl_ins_phased) # append total number of reads to line
 		mq = float(line[23].split(" ")[0].replace("NA", "0"))
 		phasing_pct = 0 if line[15] == "NA" else float(line[15].split("/")[0])/float(line[15].split(" ")[0].split("/")[1])*100 if line[15].split(" ")[0].split("/")[1] != "0" else 100
 		muts_low_confidence = 300 if line[15] == "NA" else float(line[15].split(" - ")[1])
@@ -2547,7 +2548,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 				if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
 						dict_spl_ins = trip[keys][21]
-						dict_spl_ins_phased = trip[keys][21]+trip[keys][9]*2
+						dict_spl_ins_phased = len(trip[keys][23].split(","))
 						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
 						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
 						dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
@@ -2738,9 +2739,10 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 			if gene1 == w[18] and gene2 == w[19]:
 				readNames.append(w[0])
 				mapQual.append(int(w[4]))
-		readNames = ",".join(readNames)
+		readNames = ",".join(set(readNames))
 		mapQual = str(round(mean(mapQual),1))+" ("+str(min(mapQual))+"-"+str(max(mapQual))+")"
-		
+		numReads = len(readNames.split(","))
+
 		# study coverage and soft filter if seq == wgs:
 		if seq == "wgs":
 			isotypye = kGenes.split(" - ")[0]
@@ -2840,19 +2842,19 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 					
 			# hard filter:
 			if reductionMean > 0:
-				class_switch.append([ kGenes.split(" - ")[0], kReadtype, score, mapQual, meanA, meanB, pvalue, reductionMean, readNames ])
+				class_switch.append([ kGenes.split(" - ")[0], kReadtype, score, mapQual, numReads, meanA, meanB, pvalue, reductionMean, readNames ])
 			
 			# pre-defined soft filer:
 			if meanA > 8 and reductionMean >= 30 and pvalue < 0.0000000001: # 1e-10
 				if (score >= scoreCutoffCSR and reductionMean >= 60) or (score >= (scoreCutoffCSR*1.5) and reductionMean >= 30):
-					class_switch_filt.append([ kGenes.split(" - ")[0], kReadtype, score, mapQual, meanA, meanB, pvalue, reductionMean, readNames ])
+					class_switch_filt.append([ kGenes.split(" - ")[0], kReadtype, score, mapQual, numReads, meanA, meanB, pvalue, reductionMean, readNames ])
 					reductionMeans.append(reductionMean)
 
 		# just filter based on score if seq != wgs:
 		else:
-			class_switch.append([kGenes.split(" - ")[0], kReadtype, score, mapQual, "NA", "NA", "NA", "NA", readNames])
+			class_switch.append([kGenes.split(" - ")[0], kReadtype, score, mapQual, numReads, "NA", "NA", "NA", "NA", readNames])
 			if score >= scoreCutoffCSR:
-				class_switch_filt.append([kGenes.split(" - ")[0], kReadtype, score, mapQual, "NA", "NA", "NA", "NA", readNames])
+				class_switch_filt.append([kGenes.split(" - ")[0], kReadtype, score, mapQual, numReads, "NA", "NA", "NA", "NA", readNames])
 				reductionMeans.append(score)
 	
 	class_switch = sorted(class_switch, key=operator.itemgetter(1), reverse=True)
@@ -3230,7 +3232,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 	translocationsList = sorted(translocationsList, key=operator.itemgetter(8), reverse=True)
 	translocationsALL = list()
 	translocationsPASS = list()
-	translocationsALL.append("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names"))
+	translocationsALL.append("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names"))
 
 	for i in translocationsList:
 
@@ -3287,6 +3289,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		quals = [int(q) for q in i[11].split("-")]
 		mapQualReport = str(round(mean(quals),1))+" ("+str(min(quals))+"-"+str(max(quals))+")"
 		readNamesReport = ",".join(set(i[12].split(",")))
+		numReads = len(readNamesReport.split(","))
 		scoreNormal = i[13]
 		
 		## RepeatMasker and GeneID:
@@ -3438,13 +3441,13 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		geneID = geneID.replace(" - ", "::")		
 
 		## Return all
-		translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance)])+("" if reportReadNames == "no" else "\t"+readNamesReport))
+		translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, str(numReads), readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance)])+("" if reportReadNames == "no" else "\t"+readNamesReport))
 		
 		## Return pass
 		if score >= mntoncoPass and vafAdj >= vafOnco*100 and ( scoreNormal == "NA" or scoreNormal <= mnnonco ) and ponCount <= mncPoN:
 			if mechanism == "Translocation": traAnnot = traAnnot+" ["+chrA+":"+positionA+":"+strandA+";"+chrB+":"+positionB+":"+strandB+"] ["+nNucleotidesFinal+"] ["+geneID+"] ["+str(vafAdj)+"%]"
 			else: traAnnot = traAnnot+" ["+strandA+"/"+strandB+"] ["+nNucleotidesFinal+"] ["+geneID+"] ["+str(vafAdj)+"%]"
-			translocationsPASS.append("\t".join(["Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement", traAnnot, mechanism, str(score)+" ("+str(scoreNormal)+") ["+str(ponCount)+"] ["+repeatMasker+"]", mapQualReport]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+readNamesReport))
+			translocationsPASS.append("\t".join(["Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement", traAnnot, mechanism, str(score)+" ("+str(scoreNormal)+") ["+str(ponCount)+"] ["+repeatMasker+"]", mapQualReport, str(numReads)]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+readNamesReport))
 		
 	return(translocationsALL, translocationsPASS)
 
