@@ -2476,6 +2476,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 		mech = line[1]
 		spl_ins = line[22]
 		spl_ins_phased = len(line[24].split(",")) # get total number of reads
+		original_spl_ins = line[2]+line[3]
 		line.append(spl_ins_phased) # append total number of reads to line
 		mq = float(line[23].split(" ")[0].replace("NA", "0"))
 		phasing_pct = 0 if line[15] == "NA" else float(line[15].split("/")[0])/float(line[15].split(" ")[0].split("/")[1])*100 if line[15].split(" ")[0].split("/")[1] != "0" else 100
@@ -2645,6 +2646,8 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						nw2 = [g.split("*")[0] for g in nw2] # remove allelese and keep first gene 
 						common2 = set(ts2).intersection(nw2) # intersection between values in dict and value analysed
 						dict_spl_ins = trip[keys][21]
+						dict_spl_ins_phased = len(trip[keys][23].split(","))
+						dict_original_spl_ins = trip[keys][1]+trip[keys][2]
 						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
 						dict_cdr3 = trip[keys][19]
 						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
@@ -2659,6 +2662,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						##### F: same as D but considering V-gene family in the comparison instead of V-gene
 						##### G: same J-V, and same V seq or V seq within
 						##### H: same J-V, one with 5x spl_ins
+						##### I: 2 genes in common, one with 2x spl_ins_phased and 2x original_spl_ins
 						condiA = len(common) == 2 and (line[20] in dict_cdr3 or dict_cdr3 in line[20])
 						condiB = (len(common) == 2 or len(common2) >= 2) and abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.8
 						condiC = nw[0].startswith("IGHJ") and line[4] == trip[keys][3] and line[5] == trip[keys][4] and ((line[20] in dict_cdr3 or dict_cdr3 in line[20]) or (abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.9))
@@ -2667,7 +2671,8 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						condiF = ((nw[0] == ts[0] and nw[-1].split("-")[0] == ts[-1].split("-")[0]) or (nw2[0] == ts2[0] and nw2[-1].split("-")[0] == ts2[-1].split("-")[0])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
 						condiG = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (line[13] in trip[keys][12] or trip[keys][12] in line[13])
 						condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (spl_ins*5 < dict_spl_ins or dict_spl_ins*5 < spl_ins)
-						if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH:
+						condiI = (len(common) == 2 or len(common2) >= 2) and ( (dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins) or (spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins) )
+						if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI:
 							if len(ts) > len(nw): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
 								pr = 1
 							elif len(ts) < len(nw): # if the other way around... keep the new one
@@ -2675,6 +2680,10 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 							elif line[19] != "NA" and dict_cdr3 == "NA": # keep the one with info in CDR3 aa seq
 								del trip[keys]
 							elif line[19] == "NA" and dict_cdr3 != "NA":
+								pr = 1
+							elif dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins: # check if one has more reads (including phased reads) and more initially mapped split/insert reads
+								del trip[keys]
+							elif spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins:
 								pr = 1
 							elif line[5] != trip[keys][4] and line[7] != trip[keys][6]: # if different breakpoints, keep both if similar score
 								if spl_ins*0.5 > dict_spl_ins: 
