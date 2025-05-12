@@ -1868,6 +1868,16 @@ def collapseSequences(information):
 						foundInDict = "yes_butPartial_needToChangeSeq"
 						seqInDictToMatch = seqInDict
 						break
+					# check if partial sequences matches >0.95 a complete sequence (JD / DV)
+					elif len(seqInDict) > len(seq) and ( SequenceMatcher(None, seqInDict[:len(seq)], seq).ratio() > 0.95 or SequenceMatcher(None, seqInDict[-len(seq):], seq).ratio() > 0.95 ):
+						foundInDict = "yes_butPartial"
+						seqInDictToMatch = seqInDict
+						break
+					# check if complete sequences matches >0.95 a partial sequence (JD / DV)
+					elif len(seq) > len(seqInDict) and ( SequenceMatcher(None, seq[:len(seqInDict)], seqInDict).ratio() > 0.95 or SequenceMatcher(None, seq[-len(seqInDict):], seqInDict).ratio() > 0.95 ):
+						foundInDict = "yes_butPartial_needToChangeSeq"
+						seqInDictToMatch = seqInDict
+						break
 					# else, check if very similar sequences
 					else:
 						aligner = PairwiseAligner()
