@@ -3497,7 +3497,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 			genesToMatch = tuple(["TRAJ", "TRDJ"])
 		else: 
 			GENEtoStore = GENE
-			genesToMatch = GENE+"J"
+			genesToMatch = tuple([GENE+"J"])
 
 		countGeneRearrangement = 0
 		puritySpecificRearrangement = 0
@@ -3505,6 +3505,40 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 		CovReductionSelectedRearrangement = list()
 		purityGene = 0
 		locusCompleted = "no"
+		
+		# Create list of IGHJ genes found rearranged in GENE
+		JgenesRearrangedList = []
+		SUMM = open(filterOutputFile, "r")
+		for sLine in SUMM:
+			sList = sLine.rstrip("\n").split("\t")
+			if any([True if i in sList[1] else False for i in genesToMatch]):
+				score = float(sList[3].split(" ")[0])
+				if score < scoreCutoffPurity: continue
+				if sList[0].startswith("Oncogenic"):
+					allGenes = sList[1].split(" ")[3].replace("[", "").replace("]", "").split("::")
+					for g in allGenes:
+						if g.startswith(genesToMatch):
+							JgenesRearrangedList.append([g, "geneOnly", "geneOnly", score])
+							break
+				else:
+					if sList[9] == "Partial rearrangement":
+						g = sList[1].split(" - ")[0]
+						JgenesRearrangedList.append([g, "geneOnly", "geneOnly", score])
+					else:
+						jGenes = ",".join([j.split("*")[0] for j in sList[1].split(" - ")[0].split(",")])
+						locus = jGenes.split("J")[0]
+						seq = sList[11]
+						CHAIN = open(filterOutputFile.replace("filtered.tsv", locus+".tsv"), "r")
+						for cLine in CHAIN:
+							cList = cLine.rstrip("\n").split("\t")
+							if seq == cList[15]:
+								JgenesRearrangedList.append([jGenes, cList[4], cList[5], score])
+								break
+						CHAIN.close()
+		SUMM.close()
+		if len(JgenesRearrangedList) > 2: # limit to two J genes per GENE
+			JgenesRearrangedList.sort(key=lambda p: p[3], reverse=True) # order based on score
+			JgenesRearrangedList = JgenesRearrangedList[:2]
 		
 		# Open bed file and iterate over J genes
 		jCount = 0
@@ -3545,7 +3579,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowNormal, 0))
-					if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth != "high" and depthNormal <= 10 ): continue
+					if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 20 ) or ( seqDepth == "low" and depthNormal <= 8 ): continue
 					
 					comms = pathToSamtools+"samtools depth -aa -s -J -Q "+mapq+" -r "+regionDeletedBreak+" "+bamT+" | cut -f 3"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -3592,36 +3626,12 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					countGeneSpecificRearrangement = 0
 					countGeneSpecificRearrangementDetection = "no"
 					if covReductionBreak > 0.05 and covReductionGene > 0.05:
-						SUMM = open(filterOutputFile, "r")
-						for sLine in SUMM:
-							sList = sLine.rstrip("\n").split("\t")
-							if geneRearranged in sList[1]:
-								if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
-								if sList[0].startswith("Oncogenic"): 
-									allGenes = sList[1].split(" ")[3].replace("[", "").replace("]", "").split("::")
-									if geneRearranged in allGenes:
-										countGeneSpecificRearrangement += 1
-								else:
-									jGenes = [j.split("*")[0] for j in sList[1].split(" - ")[0].split(",")]
-									if len(jGenes) == 1:
-										if geneRearranged in jGenes: 
-											countGeneSpecificRearrangement += 1
-									elif geneRearranged in jGenes:
-										score = sList[3]
-										seq = sList[10]
-										locus = geneRearranged.split("J")[0]
-										CHAIN = open(filterOutputFile.replace("filtered.tsv", locus+".tsv"), "r")
-										for cLine in CHAIN:
-											cList = cLine.rstrip("\n").split("\t")
-											if score == cList[19] and seq == cList[14]:
-												if strand == "+" and posEndGeneRearranged == cList[5]: 
-													countGeneSpecificRearrangement += 1
-													break
-												elif strand == "-" and posStartGeneRearranged == cList[4]: 
-													countGeneSpecificRearrangement += 1
-													break
-										CHAIN.close()									
-						SUMM.close()
+						for jgrl in JgenesRearrangedList:
+							if jgrl[1] == "geneOnly":
+								if geneRearranged == jgrl[0]:
+									countGeneSpecificRearrangement += 1
+							elif (strand == "-" and int(posStartGeneRearranged) == int(jgrl[1])) or (strand == "+" and int(posEndGeneRearranged) == int(jgrl[2])):
+								countGeneSpecificRearrangement += 1
 						if countGeneSpecificRearrangement > 0:
 							countGeneSpecificRearrangementDetection = "rearrangement"
 						
