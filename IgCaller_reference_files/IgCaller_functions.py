@@ -3579,8 +3579,9 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowNormal, 0))
-					if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 20 ) or ( seqDepth == "low" and depthNormal <= 8 ): continue
-					
+					if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 15 ) or ( seqDepth == "low" and depthNormal <= 7 ): flagCov = "LowCoverage"
+					else: flagCov = "PASS"
+
 					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedBreak+" "+bamT+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
@@ -3617,38 +3618,42 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					# Adjust depthDeleted based on normal-BAM-derived factorDeleted and calculate covReduction
 					depthDeletedBreak = round(depthDeletedBreak / factorDeletedBreak, 0)
 					depthDeletedGene = round(depthDeletedGene / factorDeletedGene, 0)
-					covReductionBreak = round(1 - depthDeletedBreak / depthNormal, 3)
-					covReductionGene = round(1 - depthDeletedGene / depthNormal, 3)
-					if covReductionBreak < 0: covReductionBreak = 0
-					if covReductionGene < 0: covReductionGene = 0
+					if depthNormal > 0:
+						covReductionBreak = round(1 - depthDeletedBreak / depthNormal, 3)
+						covReductionGene = round(1 - depthDeletedGene / depthNormal, 3)
+						if covReductionBreak < 0: covReductionBreak = 0
+						if covReductionGene < 0: covReductionGene = 0
+					else:
+						covReductionBreak = 0
+						covReductionGene = 0
 
 					# Check if IGHJ gene found in a rearranged allele to estimate purity
 					countGeneSpecificRearrangement = 0
 					countGeneSpecificRearrangementDetection = "no"
-					if covReductionBreak > 0.05 and covReductionGene > 0.05:
-						for jgrl in JgenesRearrangedList:
-							if jgrl[1] == "geneOnly":
-								if geneRearranged == jgrl[0]:
-									countGeneSpecificRearrangement += 1
-							elif (strand == "-" and int(posStartGeneRearranged) == int(jgrl[1])) or (strand == "+" and int(posEndGeneRearranged) == int(jgrl[2])):
+					for jgrl in JgenesRearrangedList:
+						if jgrl[1] == "geneOnly":
+							if geneRearranged == jgrl[0]:
 								countGeneSpecificRearrangement += 1
-						if countGeneSpecificRearrangement > 0:
-							countGeneSpecificRearrangementDetection = "rearrangement"
-						
-						# Potentially missed rearrangements, based on coverage if specified
-						if ( estimatePurityCoverage == "yes" or (estimatePurityCoverage == "igh" and GENE == "IGH") ) and countGeneSpecificRearrangement == 0 and covReductionBreak > covReductionCutoff and covReductionGene > covReductionCutoff: 
-							countGeneSpecificRearrangement = 1
-							countGeneSpecificRearrangementDetection = "coverage"
+						elif (strand == "-" and int(posStartGeneRearranged) == int(jgrl[1])) or (strand == "+" and int(posEndGeneRearranged) == int(jgrl[2])):
+							countGeneSpecificRearrangement += 1
+					if countGeneSpecificRearrangement > 0:
+						countGeneSpecificRearrangementDetection = "rearrangement"
+						countGeneRearrangement = countGeneRearrangement + countGeneSpecificRearrangement
+					
+					# Potentially missed rearrangements, based on coverage if specified
+					if ( estimatePurityCoverage == "yes" or (estimatePurityCoverage == "igh" and GENE == "IGH") ) and flagCov == "PASS" and countGeneSpecificRearrangement == 0 and covReductionBreak > covReductionCutoff and covReductionGene > covReductionCutoff: 
+						countGeneSpecificRearrangement = 1
+						countGeneSpecificRearrangementDetection = "coverage"
 						countGeneRearrangement = countGeneRearrangement + countGeneSpecificRearrangement
 
 					# Select and summarize covReduction
-					if ( covReductionBreak > covReductionCutoff and covReductionGene > covReductionCutoff ) or countGeneSpecificRearrangement > 0:
+					if ( covReductionBreak > covReductionCutoff and covReductionGene > covReductionCutoff and flagCov == "PASS") or countGeneSpecificRearrangement > 0:
 						covReduction = round(mean([covReductionBreak, covReductionGene]), 3)
 					else:
 						covReduction = min([covReductionBreak, covReductionGene])
 
 					# Adjust countGeneRearrangement and countGeneSpecificRearrangement if covReduction of biallelic rearrangement
-					if covReduction > 0.75 and countGeneRearrangement < 2:
+					if covReduction > 0.75 and countGeneRearrangement < 2 and flagCov == "PASS":
 						while countGeneRearrangement < 2: 
 							countGeneRearrangement += 1
 							countGeneSpecificRearrangement += 1
@@ -3660,11 +3665,11 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity < 0: purity = 0
 
 					# Keep all info
-					listToStore = [GENEtoStore, geneRearranged, regionNormal, regionDeletedBreak, regionDeletedGene, str(int(depthNormal)), str(int(depthDeletedBreak)), str(int(depthDeletedGene)),str(covReductionBreak), str(covReductionGene), str(covReduction), str(countGeneSpecificRearrangement), str(countGeneRearrangement), str(purity)]
+					listToStore = [GENEtoStore, geneRearranged, regionNormal, regionDeletedBreak, regionDeletedGene, str(int(depthNormal)), str(int(depthDeletedBreak)), str(int(depthDeletedGene)),str(covReductionBreak), str(covReductionGene), str(covReduction), str(countGeneSpecificRearrangement), str(countGeneRearrangement), str(purity), flagCov]
 					CovReductionAll.append("\t".join(listToStore))
 
 					# Keep highest purities per gene (ie locus)
-					if locusCompleted == "no" or countGeneSpecificRearrangementDetection == "rearrangement":
+					if flagCov == "PASS" and (locusCompleted == "no" or countGeneSpecificRearrangementDetection == "rearrangement"):
 						if countGeneSpecificRearrangement > 0:
 							purityGeneRearrangement.append(purity)
 							CovReductionSelectedRearrangement.append("\t".join(listToStore))
@@ -3682,7 +3687,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					regionDeletedBreak = regionDeleted_1
 
 					# check locusCompleted
-					if covReduction > 0.75 or countGeneRearrangement >= 2:
+					if (flagCov == "PASS" and covReduction > 0.75) or countGeneRearrangement >= 2:
 						locusCompleted = "yes"
 
 		B.close()
@@ -3717,11 +3722,11 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 		SUMM.close()
 
 		if kdes == 0:
-			CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13])
+			CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13, "\tNoRearranged"])
 			CovReductionAll.append(CovReductionGeneInfo)
 		
 		if rsss == 0:
-			CovReductionGeneInfo = "".join(["IGKRSS", "\tNA"*13])
+			CovReductionGeneInfo = "".join(["IGKRSS", "\tNA"*13, "\tNoRearranged"])
 			CovReductionAll.append(CovReductionGeneInfo)
 		
 		regionsToIterated = ["IGKKde", "IGKRSS"] if kdes > 0 and rsss > 0 else ["IGKKde"] if kdes > 0 else ["IGKRSS"] if rsss > 0 else list()
@@ -3744,11 +3749,12 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				stdout, stderr = process.communicate()
 				depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
 				
-				if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth != "high" and depthNormal <= 10 ): 
-					CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13])
+				if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 15 ) or ( seqDepth == "low" and depthNormal <= 7 ): 
+					CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13, "LowCoverage"])
 					CovReductionAll.append(CovReductionGeneInfo)
-
+				
 				else:
+					flagCov == "PASS"
 					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamT+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
@@ -3782,7 +3788,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity >= 1: purity = 1
 					if purity < 0: purity = 0
 
-					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity)])
+					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
 					CovReductionSelected.append(CovReductionGeneInfo)
 					puritySampleList.append(purity)
 
@@ -3798,7 +3804,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 	
 	## ...purity file
 	O = open(filterOutputFile.replace("_filtered.tsv", "_purity.tsv"), "w")
-	O.write("Analysis\tJ_gene\tNormal_region\tDeleted_region_break\tDeleted_region_next_gene\tDepth_normal_region\tDepth_deleted_region_break\tDepth_deleted_region_next_gene\tDepth_reduction_break\tDepth_reduction_next_gene\tDepth_reduction\tNumber_of_times_J_gene_specific_rearrangments\tNumber_of_times_J_gene_rearranged\tPurity\tSelected\n")
+	O.write("Analysis\tJ_gene\tNormal_region\tDeleted_region_break\tDeleted_region_next_gene\tDepth_normal_region\tDepth_deleted_region_break\tDepth_deleted_region_next_gene\tDepth_reduction_break\tDepth_reduction_next_gene\tDepth_reduction\tNumber_of_times_J_gene_specific_rearrangments\tNumber_of_times_J_gene_rearranged\tPurity\tFlag\tSelected\n")
 	for eToPrint in CovReductionSelected:
 		O.write(eToPrint+"\tYes\n")
 	for eToPrint in CovReductionAll:
