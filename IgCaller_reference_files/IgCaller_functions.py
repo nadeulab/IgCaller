@@ -3797,7 +3797,9 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 		puritySample = "<"+str(purityCutoff)+" (NA)"
 	else: 
 		puritySampleList.sort()
-		puritySample = str(round(median(puritySampleList), 3))+" ("+";".join([str(p) for p in puritySampleList])+")"
+		medPurity = round(median(puritySampleList), 3)
+		if medPurity < purityCutoff: medPurity = "<"+str(purityCutoff)
+		puritySample = str(medPurity)+" ("+";".join([str(p) for p in puritySampleList])+")"
 	
 	## ...filtered
 	with open(filterOutputFile, 'a') as file: file.write("Purity\t"+str(puritySample)+"\t"+"\t".join(["NA"]*(10 if reportReadNames == "no" else 11))+"\n")
