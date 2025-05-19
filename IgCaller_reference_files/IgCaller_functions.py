@@ -3713,10 +3713,10 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 		SUMM = open(filterOutputFile, "r")
 		for sLine in SUMM:
 			sList = sLine.rstrip("\n").split("\t")
-			if "IGK" == sList[0] and "IGKKde" in sList[1]:
+			if "IGK" == sList[0] and "IGKKde" in sList[1] and "Deletion" in sList[2]:
 				if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
 				kdes += 1
-			if "IGK" == sList[0] and "IGKRSS" in sList[1]:
+			if "IGK" == sList[0] and "IGKRSS" in sList[1] and "Deletion" in sList[2]:
 				if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
 				rsss += 1
 		SUMM.close()
@@ -3750,11 +3750,11 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
 				
 				if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 15 ) or ( seqDepth == "low" and depthNormal <= 7 ): 
-					CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13, "LowCoverage"])
+					CovReductionGeneInfo = "".join([igkRegion, "\tNA"*13, "LowCoverage"])
 					CovReductionAll.append(CovReductionGeneInfo)
 				
 				else:
-					flagCov == "PASS"
+					flagCov = "PASS"
 					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamT+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
