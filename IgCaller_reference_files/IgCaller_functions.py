@@ -3725,30 +3725,39 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 	if "IGK" in listGenes:
 		
 		kdes = 0
+		flag_kdes = "PASS"
 		rsss = 0
+		flag_rsss = "PASS"
+		kde_rss_s = 0
 		SUMM = open(filterOutputFile, "r")
 		for sLine in SUMM:
 			sList = sLine.rstrip("\n").split("\t")
-			if "IGK" == sList[0] and "IGKKde" in sList[1] and "Deletion" in sList[2]:
+			if "IGK" == sList[0] and "IGKKde" in sList[1]:
 				if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
-				kdes += 1
-			if "IGK" == sList[0] and "IGKRSS" in sList[1] and "Deletion" in sList[2]:
+				if sList[2] == "Deletion": kdes += 1
+				else: flag_kdes = "PotentialInversion"
+			if "IGK" == sList[0] and "IGKRSS" in sList[1]:
 				if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
-				rsss += 1
+				if sList[2] == "Deletion": rsss += 1
+				else: flag_rsss = "PotentialInversion"
+			if "IGK" == sList[0] and sList[1] == "IGKKde - IGKRSS":
+				kde_rss_s += 1
 		SUMM.close()
-
-		if kdes == 0:
-			CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13, "\tNoRearranged"])
+				
+		if kdes == 0 or flag_kdes == "PotentialInversion":
+			flagToPrint = "NoRearranged" if kdes == 0 else "PotentialInversion"
+			CovReductionGeneInfo = "".join(["IGKKde", "\tNA"*13, "\t"+flagToPrint])
 			CovReductionAll.append(CovReductionGeneInfo)
 		
-		if rsss == 0:
-			CovReductionGeneInfo = "".join(["IGKRSS", "\tNA"*13, "\tNoRearranged"])
+		if rsss == 0 or flag_rsss == "PotentialInversion":
+			flagToPrint = "NoRearranged" if rsss == 0 else "PotentialInversion"
+			CovReductionGeneInfo = "".join(["IGKRSS", "\tNA"*13, "\t"+flagToPrint])
 			CovReductionAll.append(CovReductionGeneInfo)
 		
-		regionsToIterated = ["IGKKde", "IGKRSS"] if kdes > 0 and rsss > 0 else ["IGKKde"] if kdes > 0 else ["IGKRSS"] if rsss > 0 else list()
+		regionsToIterate = ["IGKKde", "IGKRSS"] if kdes > 0 and rsss > 0 and flag_kdes == "PASS" and flag_rsss == "PASS" else ["IGKKde"] if kdes > 0 and flag_kdes == "PASS" else ["IGKRSS"] if rsss > 0 and flag_rsss == "PASS" else list()
 		
-		if regionsToIterated: 
-			for igkRegion in regionsToIterated:
+		if regionsToIterate:
+			for igkRegion in regionsToIterate:
 
 				if igkRegion == "IGKKde": 
 					igkPositionRearrangements = kdes
@@ -3803,6 +3812,9 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					else: purity = covReduction
 					if purity >= 1: purity = 1
 					if purity < 0: purity = 0
+
+					# Adjust, if necessary, purity if only one IGKKde-IGKRSS identified but it looks potentially biallelic and all other purities are lower
+					if purity > 0.75 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
 
 					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
 					CovReductionSelected.append(CovReductionGeneInfo)
