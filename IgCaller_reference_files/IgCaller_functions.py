@@ -3813,7 +3813,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity >= 1: purity = 1
 					if purity < 0: purity = 0
 
-					# Adjust, if necessary, purity if only one IGKKde-IGKRSS identified but it looks potentially biallelic and all other purities are lower
+					# Adjust, if necessary, purity if only one IGKKde-IGKRSS identified but it looks potentially biallelic considering also all other purities found
 					if purity > 0.75 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
 
 					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
