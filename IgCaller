@@ -316,6 +316,26 @@ parser.add_argument('-gOnco', '--genesOncoIg',
 					choices = ["all", "protein_coding", "protein_coding_canonical"],
 					help = "Genes to be annotated based on proximity to the oncogenic IG/TCR rearrangement breakpoints. All genes, only protein coding genes, or only canonical portein coding transcripts. For hg19 reference, protein_coding_canonical is not supported and it is treated as protein_coding. [all/protein_coding/protein_coding_canonical, default=protein_coding_canonical]")
 
+parser.add_argument('-cgOnco', '--customGenesOncoIg', 
+					dest = "customGenesOncoIg",
+					action = "store",
+					default = "",
+					help = "Comma-separated list of genes to be annotated with higher priority on the non-IG/TCR breakpoint if they are found within '-gOncoDist' of the breakpoint [default='']")
+
+parser.add_argument('-gOncoDist', '--genesOncoIgDistance',
+					dest = "genesOncoIgDistance",
+					action = "store",
+					default = "250000",
+					type = int,
+					help = "Maximum distance in base pairs from the non-IG/TCR breakpoint to the closest gene to annotate it [default=250000]")
+
+parser.add_argument('-cgOncoDist', '--customGenesOncoIgDistance',
+					dest = "customGenesOncoIgDistance",
+					action = "store",
+					default = "500000",
+					type = int,
+					help = "For genes provided in -cgOnco, maximum distance in base pairs from the non-IG/TCR breakpoint to the closest gene to annotate it [default=500000]")
+
 parser.add_argument('-ptsam', '--pathToSamtools',
 					dest = "pathToSamtools",
 					action = "store",
@@ -384,6 +404,9 @@ vafOnco = options.vafOnco
 mnnonco = options.mnnonco
 mncPoN = options.mncPoN
 genesOncoIg = options.genesOncoIg
+customGenesOncoIg = options.customGenesOncoIg.split(",")
+genesOncoIgDistance = options.genesOncoIgDistance
+customGenesOncoIgDistance = options.customGenesOncoIgDistance
 pathToSamtools = options.pathToSamtools if options.pathToSamtools == "" else options.pathToSamtools+"/"
 threadsForSamtools = str(options.threadsForSamtools)
 
@@ -541,7 +564,7 @@ if runOnlyOncogenicRearrangements == "no":
 			
 			# 18) Annotate CLL stereotyped subsets and IGLV3-21 R110:
 			if GENE == "IGH" and subsetsAnnotation != "no": information = annotateCLLsubsets(information, subsetsAnnotation)
-			if GENE == "IGL" and R110annotation == "yes": information = annotateR110mutation(information)			
+			if GENE == "IGL" and R110annotation == "yes": information = annotateR110mutation(information)
 			
 			# 19) Pre-defined filter:
 			trip = predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion)
@@ -561,7 +584,7 @@ if runOnlyOncogenicRearrangements == "no":
 				SUMM.write("\n".join([GENE+"\t"+trip[item][20]+"\t"+'\t'.join(map(str, map(trip[item].__getitem__, indxs))) for item in trip])+"\n")
 			else:
 				SUMM.write(GENE+"\tNo rearrangement found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
-			
+		
 		elif GENE == "CSR":
 			# 21) Study coverage around CSR and return info:
 			class_switch, class_switch_filt, reductionMeans = classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR)
@@ -585,7 +608,7 @@ if runOnlyOncogenicRearrangements == "no":
 
 # 23) Genome-wide IG/TCR translocations:
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: analyzing genome-wide "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangements...")
-translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, reportReadNames)
+translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames)
 
 Vseq = open(bamT.replace(".bam", "_output_oncogenic_rearrangements.tsv"), "w")
 Vseq.write("\n".join(translocationsALL)+"\n")
