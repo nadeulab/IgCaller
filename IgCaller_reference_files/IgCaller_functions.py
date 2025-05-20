@@ -3680,6 +3680,9 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity >= 1: purity = 1
 					if purity < 0: purity = 0
 
+					# Adjust flag if found rearranged but with no covReduction
+					if countGeneSpecificRearrangement > 0 and purity == 0: flagCov = "NoDepthReduction"
+
 					# Keep all info
 					listToStore = [GENEtoStore, geneRearranged, regionNormal, regionDeletedBreak, regionDeletedGene, str(int(depthNormal)), str(int(depthDeletedBreak)), str(int(depthDeletedGene)),str(covReductionBreak), str(covReductionGene), str(covReduction), str(countGeneSpecificRearrangement), str(countGeneRearrangement), str(purity), flagCov]
 					CovReductionAll.append("\t".join(listToStore))
@@ -3803,6 +3806,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					# Calculate covReduction
 					depthDeleted = round(depthDeleted / factorDeleted, 0)
 					covReduction = round(1 - depthDeleted / depthNormal, 3)
+					if covReduction < 0: covReduction = 0
 
 					# Adjust kdes/rsss if covReduction of biallelic rearrangement
 					if covReduction > 0.75 and igkPositionRearrangements < 2: igkPositionRearrangements = 2
@@ -3816,9 +3820,16 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					# Adjust, if necessary, purity if only one IGKKde-IGKRSS identified but it looks potentially biallelic considering also all other purities found
 					if purity > 0.75 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
 
+					# Adjust flag if found rearranged but with no covReduction
+					if purity == 0: flagCov = "NoDepthReduction"
+
+					# Store info
 					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
-					CovReductionSelected.append(CovReductionGeneInfo)
-					puritySampleList.append(purity)
+					if flagCov == "PASS":
+						CovReductionSelected.append(CovReductionGeneInfo)
+						puritySampleList.append(purity)
+					else:
+						CovReductionAll.append(CovReductionGeneInfo)
 
 	# Print output...
 	if len(puritySampleList) == 0: 
