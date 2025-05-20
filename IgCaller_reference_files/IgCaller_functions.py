@@ -2558,6 +2558,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 				### c1) check if same CDR3 is already annotated...	
 				if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
+						if trip[keys][18] == "Partial rearrangement": continue
 						dict_spl_ins = trip[keys][21]
 						dict_spl_ins_phased = len(trip[keys][23].split(","))
 						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
@@ -2637,6 +2638,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 					
 					### c3) check if a "not exact VDJ" is already annotated...
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
+						if trip[keys][18] == "Partial rearrangement": continue
 						ts = keys.split(" - ") # annotated values
 						nw = line[0].split(" - ") # new value
 						common = set(ts).intersection(nw) # intersection between values in dict and value analysed
@@ -2880,7 +2882,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 	
 	return(class_switch, class_switch_filt, reductionMeans)
 
-def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, reportReadNames):
+def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames):
 	
 	if genomeVersion == "hg19":
 		chrom14_IGH = [106052774, 107288051] # IGH region 
@@ -3312,7 +3314,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		scoreNormal = i[13]
 		
 		## RepeatMasker and GeneID:
-		minDistance = 250000
+		minDistance = genesOncoIgDistance
 		repeatMasker = "none"
 		if genomeVersion == "hg19":
 			AllGenesBedToOpen = inputsFolder+"/hg19/dicts/AllRegionsAndGenes_hg19.bed"
@@ -3337,18 +3339,25 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		else:
 			gene = ""
 			for element in GeneID_dicti[chrA.replace("chr","")]:
-				if ( int(positionA) >= int(element[0]) and int(positionA) <= int(element[1]) ) or abs(int(positionA) - int(element[0])) < minDistance or abs(int(positionA) - int(element[1])) < minDistance:
+				if element[2] in customGenesOncoIg and ( ( int(positionA) >= int(element[0]) and int(positionA) <= int(element[1]) ) or abs(int(positionA) - int(element[0])) < customGenesOncoIgDistance or abs(int(positionA) - int(element[1])) < customGenesOncoIgDistance ):
 					gene = element[2]
 					if int(positionA) >= int(element[0]) and int(positionA) <= int(element[1]): 
 						minDistance = 0
-						break
+					else:
+						minDistance = abs(int(positionA) - int(element[0])) if abs(int(positionA) - int(element[0])) < abs(int(positionA) - int(element[1])) else abs(int(positionA) - int(element[1]))
+					break
+				elif ( int(positionA) >= int(element[0]) and int(positionA) <= int(element[1]) ) or abs(int(positionA) - int(element[0])) < minDistance or abs(int(positionA) - int(element[1])) < minDistance:
+					gene = element[2]
+					if int(positionA) >= int(element[0]) and int(positionA) <= int(element[1]): 
+						minDistance = 0
+						if customGenesOncoIg == [""]: break
 					else: 
 						minDistance = abs(int(positionA) - int(element[0])) if abs(int(positionA) - int(element[0])) < abs(int(positionA) - int(element[1])) else abs(int(positionA) - int(element[1]))
 			if gene.startswith("IGHV"): repeatMasker = "IGHV_pseudogene"
 			if gene.startswith("IGHD"): repeatMasker = "IGHD_pseudogene"
 			geneID = gene if gene != "" else "none"
 			locusID = "NoIG"
-			minDistance = minDistance if minDistance < 250000 else "NA"
+			minDistance = minDistance if minDistance < genesOncoIgDistance else "NA"
 			
 			for element in RepeatMasker_dicti[chrA.replace("chr","")]:
 				if int(positionA) >= int(element[0]) - mask_expand and int(positionA) <= int(element[1]) + mask_expand:
@@ -3373,11 +3382,18 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		else:
 			gene = ""
 			for element in GeneID_dicti[chrB.replace("chr","")]:
-				if ( int(positionB) >= int(element[0]) and int(positionB) <= int(element[1]) ) or abs(int(positionB) - int(element[0])) < minDistance or abs(int(positionB) - int(element[1])) < minDistance:
+				if element[2] in customGenesOncoIg and ( ( int(positionB) >= int(element[0]) and int(positionB) <= int(element[1]) ) or abs(int(positionB) - int(element[0])) < customGenesOncoIgDistance or abs(int(positionB) - int(element[1])) < customGenesOncoIgDistance ):
 					gene = element[2]
 					if int(positionB) >= int(element[0]) and int(positionB) <= int(element[1]):
 						minDistance = 0
-						break
+					else:
+						minDistance = abs(int(positionB) - int(element[0])) if abs(int(positionB) - int(element[0])) < abs(int(positionB) - int(element[1])) else abs(int(positionB) - int(element[1]))
+					break
+				elif ( int(positionB) >= int(element[0]) and int(positionB) <= int(element[1]) ) or abs(int(positionB) - int(element[0])) < minDistance or abs(int(positionB) - int(element[1])) < minDistance:
+					gene = element[2]
+					if int(positionB) >= int(element[0]) and int(positionB) <= int(element[1]):
+						minDistance = 0
+						if customGenesOncoIg == [""]: break
 					else:
 						minDistance = abs(int(positionB) - int(element[0])) if abs(int(positionB) - int(element[0])) < abs(int(positionB) - int(element[1])) else abs(int(positionB) - int(element[1]))
 			gene = gene if gene != "" else "none"
@@ -3385,7 +3401,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			if gene.startswith("IGHD"): repeatMasker = "IGHD_pseudogene"
 			geneID = geneID+" - "+gene
 			locusID = locusID+" - "+"NoIG"
-			minDistance = minDistance if minDistance < 250000 else "NA"
+			minDistance = minDistance if minDistance < genesOncoIgDistance else "NA"
 			
 			for element in RepeatMasker_dicti[chrB.replace("chr","")]:
 				if int(positionB) >= int(element[0]) - mask_expand and int(positionB) <= int(element[1]) + mask_expand:
