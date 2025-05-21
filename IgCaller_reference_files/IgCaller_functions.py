@@ -3743,7 +3743,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				if float(sList[3].split(" ")[0]) < scoreCutoffPurity: continue
 				if sList[2] == "Deletion": rsss += 1
 				else: flag_rsss = "PotentialInversion"
-			if "IGK" == sList[0] and sList[1] == "IGKKde - IGKRSS":
+			if "IGK" == sList[0] and "IGKKde" in sList[1] and "IGKRSS" in sList[1]:
 				kde_rss_s += 1
 		SUMM.close()
 				
