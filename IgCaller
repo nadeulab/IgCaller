@@ -590,7 +590,7 @@ if runOnlyOncogenicRearrangements == "no":
 			class_switch, class_switch_filt, reductionMeans = classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR)
 
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
-			Vseq.write("Genes\tClass\tScore\tMQ\tNum_reads\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tP_value\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
+			Vseq.write("Genes\tMechanism\tScore\tMQ\tNum_reads\tAdjusted_mean_pre_break\tAdjusted_mean_post_break\tP_value\tPct_reduction_adjusted_means"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 			if len(class_switch) > 0:
 				indxs = [0,1,2,3,4,5,6,7,8]
 				if reportReadNames == "yes": indxs.append(9)
