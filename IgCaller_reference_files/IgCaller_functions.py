@@ -3531,12 +3531,14 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				score = float(sList[3].split(" ")[0])
 				if score < scoreCutoffPurity: continue
 				if sList[0].startswith("Oncogenic"):
+					if sList[2] != "Translocation": continue
 					allGenes = sList[1].split(" ")[3].replace("[", "").replace("]", "").split("::")
 					for g in allGenes:
 						if g.startswith(genesToMatch):
 							JgenesRearrangedList.append([g, "geneOnly", "geneOnly", score])
 							break
 				else:
+					if sList[2] != "Deletion": continue
 					if sList[9] == "Partial rearrangement":
 						g = sList[1].split(" - ")[0]
 						JgenesRearrangedList.append([g, "geneOnly", "geneOnly", score])
