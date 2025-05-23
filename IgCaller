@@ -571,7 +571,7 @@ if runOnlyOncogenicRearrangements == "no":
 			
 			# 20) Save output and clean:
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
-			Vseq.write("Genes\tMechanisms\tN_split\tN_insertSize\tStart_J\tEnd_J\tN_split_rescued_J\tStart_V\tEnd_V\tN_split_rescued_V\tN_phased_rescued\tSeq_J\tSeq_D\tSeq_V\tSeq_V_normal\tSeq\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tScore\tMQ\tV_gene_phase_info"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
+			Vseq.write("Genes\tMechanism\tN_split\tN_insertSize\tStart_J\tEnd_J\tN_split_rescued_J\tStart_V\tEnd_V\tN_split_rescued_V\tN_phased_rescued\tSeq_J\tSeq_D\tSeq_V\tSeq_V_normal\tSeq\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tScore\tMQ\tV_gene_phase_info"+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 			if len(information) > 0:
 				indxs = [21]+list(range(1,15))+list(range(16,20))+[20]+list(range(22,24))+[15]
 				if reportReadNames == "yes": indxs.append(24)
