@@ -1465,184 +1465,161 @@ def createConsensusD(DseqTemp, GENE, i, Dseqs):
 
 def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft):
 	
-	readsAlreadyRecovered = []
+	readsAlreadyRecovered = [] # list to append readNames when already recovered
 	toAddInInformation = [] # list to append to Information if same D with same length
 	
-	# Round 1: Recover J-V reads and get D-seqs
-	for i in information:
-		
-		# Add two elements in i for readNames rescued at J and V
-		i.append("")
-		i.append("")
-
-		# Get soft clipped start/end J-V :  
-		if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
-			breakJ = int(i[5])
-			breakV = int(i[7]) if i[1] == "Deletion" else int(i[8]) # for IGK Inversion2
-		else:
-			breakV = int(i[4]) # it is J 
-			breakJ = int(i[8]) if i[1] == "Deletion" else int(i[7]) # it is V  # for TRB Inversion1
-		
-		DseqTemp = []
-		
-		if "IGKKde" in i[0] or "IGKRSS" in i[0]:
-			totseqW = "NA" # no totseq
-			i.insert(-3, totseqW)
+	# Round 1: Recover V reads, sort, and recover J reads
+	for geneRound in [1, 2]:
+		for i in information:
 			
-		else:
-			ANNOT_TABLE_JV = open(annot_table_JV, "r")
-			for j in ANNOT_TABLE_JV:
-				w = j.rstrip("\n").split("\t")
-				if w[0] in readsAlreadyRecovered: continue
+			# Add two elements in i for readNames rescued at J and V
+			if geneRound == 1:
+				i.append("")
+				i.append("")
 
-				if w[11].startswith("split"):
+			# Get soft clipped start/end J-V :  
+			if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
+				breakJ = int(i[5])
+				breakV = int(i[7]) if i[1] == "Deletion" else int(i[8]) # for IGK Inversion2
+			else:
+				breakV = int(i[4]) # it is J 
+				breakJ = int(i[8]) if i[1] == "Deletion" else int(i[7]) # it is V  # for TRB Inversion1
+			
+			DseqTemp = []
+			
+			if not "IGKKde" in i[0] and not "IGKRSS" in i[0]:
+				ANNOT_TABLE_JV = open(annot_table_JV, "r")
+				for j in ANNOT_TABLE_JV:
+					w = j.rstrip("\n").split("\t")
+					if w[0] in readsAlreadyRecovered: continue
 
-					# if information last value J and first value V coincide with w split values
-					if breakJ == int(w[12].replace("NA", "0")) and breakV == int(w[13].replace("NA", "0")):
-						split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
-						cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
-						split = re.findall(r'[A-Za-z]|[0-9]+', w[10].split(",")[3])
-						cigar2 = [split[x:x+2] for x in range(0, len(split),2)]
-						# MS cigar
-						if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-							mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) # we add the numbers previous to M and I
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar2 ]) # we add numbers previous to S
-						# SM cigar
-						else:
-							mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar2 ]) # we add the numbers previous to M and I
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
-						
-						DseqTemp.append(w[9][mStart:mEnd]) # we analyse from M,I+seq until seq-everything but S
-					
-					# if information last position J:
-					elif breakJ == int(w[12].replace("NA", "0")) and w[13] == "NA":							
-						split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
-						cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
-						# MS cigar
-						if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
-							J = w[9][-mStart:]
-						# SM cigar
-						else:
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
-							J = w[9][:mEnd]
-						
-						# Vseq: remove deleted nucleotides, check insertion at first bases, keep insertions not at first base:
-						if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
-							vSeq = re.sub("\(.*?\)", "",  i[12])
-							if vSeq[0] == "[":
-								vSeq = vSeq[min([a.start()+1 for a in re.finditer("\]", vSeq)]):]
-						
-						else: # it is J in IGL/TRA/TRB/TRD
-							vSeq = re.sub("\(.*?\)", "",  i[10])
-							if vSeq[-1] == "]":
-								vSeq = vSeq[:max([a.start() for a in re.finditer("\[", vSeq)]):]
-						
-						vSeq = vSeq.replace("[", "").replace("]", "")
+					if w[11].startswith("split"):
 
-						if i[1] == "Inversion1": J = ''.join(complement[base] for base in reversed(J))
-
-						j = 0
-						while j <= len(J)-minimumNumberOfNucleotidesSoft:
-							if vSeq.startswith(J[j:j+minimumNumberOfNucleotidesSoft]):
-								DseqTemp.append(J[:j])
-								if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
-									i[6] += 1 # count split J
-									i[16] = w[0] if i[16] == "" else i[16]+","+w[0] # add readName
-								else: 
-									i[9] += 1 # count split V
-									i[17] = w[0] if i[17] == "" else i[17]+","+w[0] # add readName
-								readsAlreadyRecovered.append(w[0]) # append readName
-								break
-							j += 1
-					
-					# if information first position V:
-					elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA":
-						split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
-						cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
-						# MS cigar
-						if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
-							V = w[9][-mStart:]
-						# SM cigar
-						else:
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
-							V = w[9][:mEnd]
-						
-						# jSeq: remove deleted nucleotides, check insertion at last bases, keep insertions not at last base:
-						if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
-							jSeq = re.sub("\(.*?\)", "",  i[10])
-							if jSeq[-1] == "]":
-								jSeq = jSeq[:max([a.start() for a in re.finditer("\[", jSeq)]):]
-						else:  # it is V in IGL/TRA/TRB/TRD
-							jSeq = re.sub("\(.*?\)", "",  i[12])
-							if jSeq[0] == "[":
-								jSeq = jSeq[min([a.start()+1 for a in re.finditer("\]", jSeq)]):]
-								
-						jSeq = jSeq.replace("[", "").replace("]", "")
-
-						if i[1] == "Inversion2": V = ''.join(complement[base] for base in reversed(V))
-						
-						v = len(V)
-						while v >= minimumNumberOfNucleotidesSoft:
-							if jSeq.endswith(V[v-minimumNumberOfNucleotidesSoft:v]):
-								DseqTemp.append(V[v:])
-								if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
-									i[9] += 1 # count split V
-									i[17] = w[0] if i[17] == "" else i[17]+","+w[0] # add readName
-								else: 
-									i[6] += 1 # count split J
-									i[16] = w[0] if i[16] == "" else i[16]+","+w[0] # add readName
-								readsAlreadyRecovered.append(w[0]) # append readName
-								break
-							v -= 1
-			ANNOT_TABLE_JV.close()
-
-			# Report Ds:
-			AorBdone = "no"
-			if len(DseqTemp) > 0:
-				
-				## A) all possible "D"s have different lengths... keep them all...
-				if len(set([len(s) for s in DseqTemp])) == len(DseqTemp): 
-					
-					countToAdd = 1
-					for DseqTempSimple in DseqTemp:
-						geneNames, DseqConsensus = createConsensusD([DseqTempSimple], GENE, i, Dseqs)
-						if countToAdd < len(DseqTemp):
-							iToAddInToAddInInformationlist = i.copy()
-							iToAddInToAddInInformationlist[0] = geneNames
-							iToAddInToAddInInformationlist[11] = DseqConsensus
-							if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
-								totseqW = iToAddInToAddInInformationlist[10]+iToAddInToAddInInformationlist[11]+iToAddInToAddInInformationlist[12]
+						# if information last value J and first value V coincide with w split values
+						if breakJ == int(w[12].replace("NA", "0")) and breakV == int(w[13].replace("NA", "0")):
+							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
+							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
+							split = re.findall(r'[A-Za-z]|[0-9]+', w[10].split(",")[3])
+							cigar2 = [split[x:x+2] for x in range(0, len(split),2)]
+							# MS cigar
+							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
+								mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) # we add the numbers previous to M and I
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar2 ]) # we add numbers previous to S
+							# SM cigar
 							else:
-								totseqW = iToAddInToAddInInformationlist[12]+iToAddInToAddInInformationlist[11]+iToAddInToAddInInformationlist[10]
-							totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
-							iToAddInToAddInInformationlist.insert(-3, totseqW)
+								mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar2 ]) # we add the numbers previous to M and I
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
 							
-							toAddInInformation.append(iToAddInToAddInInformationlist)
-							
-						else:
-							i[0] = geneNames
-							i[11] = DseqConsensus
-							if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
-								totseqW = i[10]+i[11]+i[12]
+							DseqTemp.append(w[9][mStart:mEnd]) # we analyse from M,I+seq until seq-everything but S
+							readsAlreadyRecovered.append(w[0])
+
+						# if information last position J:
+						elif breakJ == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE not in ["IGL", "TRA", "TRB", "TRD"])):
+							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
+							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
+							# MS cigar
+							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
+								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								J = w[9][-mStart:]
+							# SM cigar
 							else:
-								totseqW = i[12]+i[11]+i[10]
-							totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
-							i.insert(-3, totseqW)
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								J = w[9][:mEnd]
+							
+							# Vseq: remove deleted nucleotides, check insertion at first bases, keep insertions not at first base:
+							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
+								vSeq = re.sub("\(.*?\)", "",  i[12])
+								if vSeq[0] == "[":
+									vSeq = vSeq[min([a.start()+1 for a in re.finditer("\]", vSeq)]):]
+							
+							else: # it is J in IGL/TRA/TRB/TRD
+								vSeq = re.sub("\(.*?\)", "",  i[10])
+								if vSeq[-1] == "]":
+									vSeq = vSeq[:max([a.start() for a in re.finditer("\[", vSeq)]):]
+							
+							vSeq = vSeq.replace("[", "").replace("]", "")
+
+							if i[1] == "Inversion1": J = ''.join(complement[base] for base in reversed(J))
+
+							j = 0
+							while j <= len(J)-minimumNumberOfNucleotidesSoft:
+								if vSeq.startswith(J[j:j+minimumNumberOfNucleotidesSoft]):
+									DseqTemp.append(J[:j])
+									if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
+										i[6] += 1 # count split J
+										i[16] = w[0] if i[16] == "" else i[16]+","+w[0]
+									else: 
+										i[9] += 1 # count split V
+										i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
+									readsAlreadyRecovered.append(w[0])
+									break
+								j += 1
 						
-						countToAdd += 1
-					
-					AorBdone = "yes"
+						# if information first position V:
+						elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE not in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE in ["IGL", "TRA", "TRB", "TRD"])):
+							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
+							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
+							# MS cigar
+							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
+								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								V = w[9][-mStart:]
+							# SM cigar
+							else:
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								V = w[9][:mEnd]
+							
+							# jSeq: remove deleted nucleotides, check insertion at last bases, keep insertions not at last base:
+							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
+								jSeq = re.sub("\(.*?\)", "",  i[10])
+								if jSeq[-1] == "]":
+									jSeq = jSeq[:max([a.start() for a in re.finditer("\[", jSeq)]):]
+							else:  # it is V in IGL/TRA/TRB/TRD
+								jSeq = re.sub("\(.*?\)", "",  i[12])
+								if jSeq[0] == "[":
+									jSeq = jSeq[min([a.start()+1 for a in re.finditer("\]", jSeq)]):]
+									
+							jSeq = jSeq.replace("[", "").replace("]", "")
+
+							if i[1] == "Inversion2": V = ''.join(complement[base] for base in reversed(V))
+							
+							v = len(V)
+							while v >= minimumNumberOfNucleotidesSoft:
+								if jSeq.endswith(V[v-minimumNumberOfNucleotidesSoft:v]):
+									DseqTemp.append(V[v:])
+									if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
+										i[9] += 1 # count split V
+										i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
+									else: 
+										i[6] += 1 # count split J
+										i[16] = w[0] if i[16] == "" else i[16]+","+w[0]
+									readsAlreadyRecovered.append(w[0])
+									break
+								v -= 1
+				ANNOT_TABLE_JV.close()
 				
-				## B) if not, and first and second D lengths have the same number of supporting reads -> keep both!
-				elif len(set([len(s) for s in DseqTemp])) >= 2: 
-					
-					if Counter([len(s) for s in DseqTemp]).most_common(2)[0][1] == Counter([len(s) for s in DseqTemp]).most_common(2)[1][1]:
-						
-						# get first
-						DseqTempSimple = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(2)[0][0]] # get Dseqs with the same length	
-						geneNames, DseqConsensus = createConsensusD(DseqTempSimple, GENE, i, Dseqs)
+			if geneRound == 1:
+				i.append(",".join(DseqTemp))
+			else:
+				i[-1] = ",".join(DseqTemp) if i[-1] == "" else i[-1]+","+",".join(DseqTemp)
+		
+		# sort information to account for recovered V reads (geneRound 1) and also J reads (geneRound 2)
+		information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
+	
+	# Report Ds:
+	for i in information:
+		DseqTemp = i[-1].split(",") # get DseqTemp from i
+		DseqTemp = [dseq for dseq in DseqTemp if dseq != ""] # remove empty element due to iteration
+		i.pop() # remove DseqTemp from i
+		AorBdone = "no"
+		if len(DseqTemp) > 0:
+			
+			## A) all possible "D"s have different lengths... keep them all...
+			if len(set([len(s) for s in DseqTemp])) == len(DseqTemp): 
+				
+				countToAdd = 1
+				for DseqTempSimple in DseqTemp:
+					geneNames, DseqConsensus = createConsensusD([DseqTempSimple], GENE, i, Dseqs)
+					if countToAdd < len(DseqTemp):
 						iToAddInToAddInInformationlist = i.copy()
 						iToAddInToAddInInformationlist[0] = geneNames
 						iToAddInToAddInInformationlist[11] = DseqConsensus
@@ -1652,11 +1629,10 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 							totseqW = iToAddInToAddInInformationlist[12]+iToAddInToAddInInformationlist[11]+iToAddInToAddInInformationlist[10]
 						totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
 						iToAddInToAddInInformationlist.insert(-3, totseqW)
+						
 						toAddInInformation.append(iToAddInToAddInInformationlist)
 						
-						# get second
-						DseqTempSimple = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(2)[1][0]] # get Dseqs with the same length	
-						geneNames, DseqConsensus = createConsensusD(DseqTempSimple, GENE, i, Dseqs)
+					else:
 						i[0] = geneNames
 						i[11] = DseqConsensus
 						if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
@@ -1665,35 +1641,70 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 							totseqW = i[12]+i[11]+i[10]
 						totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
 						i.insert(-3, totseqW)
-						
-						AorBdone = "yes"
-						
-				## C) if not A or B, get Dseqs with the same length
-				if AorBdone == "no":
-					DseqTemp = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(1)[0][0]] # get Dseqs with the same length		
-					geneNames, DseqConsensus = createConsensusD(DseqTemp, GENE, i, Dseqs)
+					
+					countToAdd += 1
+				
+				AorBdone = "yes"
+			
+			## B) if not, and first and second D lengths have the same number of supporting reads -> keep both!
+			elif len(set([len(s) for s in DseqTemp])) >= 2: 
+				
+				if Counter([len(s) for s in DseqTemp]).most_common(2)[0][1] == Counter([len(s) for s in DseqTemp]).most_common(2)[1][1]:
+					
+					# get first
+					DseqTempSimple = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(2)[0][0]] # get Dseqs with the same length	
+					geneNames, DseqConsensus = createConsensusD(DseqTempSimple, GENE, i, Dseqs)
+					iToAddInToAddInInformationlist = i.copy()
+					iToAddInToAddInInformationlist[0] = geneNames
+					iToAddInToAddInInformationlist[11] = DseqConsensus
+					if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
+						totseqW = iToAddInToAddInInformationlist[10]+iToAddInToAddInInformationlist[11]+iToAddInToAddInInformationlist[12]
+					else:
+						totseqW = iToAddInToAddInInformationlist[12]+iToAddInToAddInInformationlist[11]+iToAddInToAddInInformationlist[10]
+					totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
+					iToAddInToAddInInformationlist.insert(-3, totseqW)
+					toAddInInformation.append(iToAddInToAddInInformationlist)
+					
+					# get second
+					DseqTempSimple = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(2)[1][0]] # get Dseqs with the same length	
+					geneNames, DseqConsensus = createConsensusD(DseqTempSimple, GENE, i, Dseqs)
 					i[0] = geneNames
 					i[11] = DseqConsensus
-					
 					if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
 						totseqW = i[10]+i[11]+i[12]
 					else:
 						totseqW = i[12]+i[11]+i[10]
 					totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
 					i.insert(-3, totseqW)
-			
-			## D) No D... just concatenate sequence
-			else:
+					
+					AorBdone = "yes"
+					
+			## C) if not A or B, get Dseqs with the same length
+			if AorBdone == "no":
+				DseqTemp = [ss for ss in DseqTemp if len(ss) == Counter([len(s) for s in DseqTemp]).most_common(1)[0][0]] # get Dseqs with the same length		
+				geneNames, DseqConsensus = createConsensusD(DseqTemp, GENE, i, Dseqs)
+				i[0] = geneNames
+				i[11] = DseqConsensus
+				
 				if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
 					totseqW = i[10]+i[11]+i[12]
 				else:
 					totseqW = i[12]+i[11]+i[10]
 				totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
 				i.insert(-3, totseqW)
+		
+		## D) No D... just concatenate sequence
+		else:
+			if "IGKKde" in i[0] or "IGKRSS" in i[0]:
+				totseqW = "NA"
+			elif GENE not in ["IGL", "TRA", "TRB", "TRD"]:
+				totseqW = i[10]+i[11]+i[12]
+			else:
+				totseqW = i[12]+i[11]+i[10]
+			totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
+			i.insert(-3, totseqW)
 	
 	information.extend(toAddInInformation) # extend information with duplicated entries with different D (from previous A and B)
-
-	information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True) # sort based on score
 	
 	# Round 2: recover reads J-D and D-V
 	for i in information:
@@ -1749,11 +1760,11 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						if dvSeq.startswith(J):
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								i[6] += 1 # count split J
-								i[16] = w[0] if i[16] == "" else i[16]+","+w[0] # add readName
+								i[16] = w[0] if i[16] == "" else i[16]+","+w[0]
 							else: 
 								i[9] += 1 # count split V
-								i[17] = w[0] if i[17] == "" else i[17]+","+w[0] # add readName
-							readsAlreadyRecovered.append(w[0]) # append readName
+								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
+							readsAlreadyRecovered.append(w[0])
 					
 					# if information first position V:
 					elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA":
@@ -1786,15 +1797,14 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						if jdSeq.endswith(V):
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								i[9] += 1 # count split V
-								i[17] = w[0] if i[17] == "" else i[17]+","+w[0] # add readName
+								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
 							else: 
 								i[6] += 1 # count split J
-								i[16] = w[0] if i[16] == "" else i[16]+","+w[0] # add readName								
-							readsAlreadyRecovered.append(w[0]) # append readName
-
+								i[16] = w[0] if i[16] == "" else i[16]+","+w[0]							
+							readsAlreadyRecovered.append(w[0])
 			ANNOT_TABLE_JV.close()
 
-	# done: sort and return information
+	# sort and return information
 	information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
 	return(information)
 
