@@ -3683,7 +3683,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity < 0: purity = 0
 
 					# Adjust flag if found rearranged but with no covReduction
-					if countGeneSpecificRearrangement > 0 and purity < 0.05: flagCov = "NoDepthReduction"
+					if countGeneSpecificRearrangement > 0 and purity < 0.08: flagCov = "NoDepthReduction"
 
 					# Keep all info
 					listToStore = [GENEtoStore, geneRearranged, regionNormal, regionDeletedBreak, regionDeletedGene, str(int(depthNormal)), str(int(depthDeletedBreak)), str(int(depthDeletedGene)),str(covReductionBreak), str(covReductionGene), str(covReduction), str(countGeneSpecificRearrangement), str(countGeneRearrangement), str(purity), flagCov]
@@ -3823,7 +3823,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity > 0.75 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
 
 					# Adjust flag if found rearranged but with no covReduction
-					if purity < 0.05: flagCov = "NoDepthReduction"
+					if purity < 0.08: flagCov = "NoDepthReduction"
 
 					# Store info
 					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
