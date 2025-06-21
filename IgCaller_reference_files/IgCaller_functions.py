@@ -1596,11 +1596,12 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									break
 								v -= 1
 				ANNOT_TABLE_JV.close()
-				
+			
+			if DseqTemp == []: DseqTemp.append("NotFoundInIter")
 			if geneRound == 1:
 				i.append(",".join(DseqTemp))
 			else:
-				i[-1] = ",".join(DseqTemp) if i[-1] == "" else i[-1]+","+",".join(DseqTemp)
+				i[-1] = i[-1]+","+",".join(DseqTemp)
 		
 		# sort information to account for recovered V reads (geneRound 1) and also J reads (geneRound 2)
 		information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
@@ -1608,7 +1609,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 	# Report Ds:
 	for i in information:
 		DseqTemp = i[-1].split(",") # get DseqTemp from i
-		DseqTemp = [dseq for dseq in DseqTemp if dseq != ""] # remove empty element due to iteration
+		DseqTemp = [dseq for dseq in DseqTemp if dseq != "NotFoundInIter"] # remove NotFoundInIter element if present
 		i.pop() # remove DseqTemp from i
 		AorBdone = "no"
 		if len(DseqTemp) > 0:
