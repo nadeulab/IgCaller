@@ -1,6 +1,6 @@
-<img src="IgCaller_logo.png" align="right" width="190" style="margin-top: 30px;">
-
 # IgCaller
+
+<img src="IgCaller_logo.png" align="right" width="190">
 
 #### Reconstructing immunoglobulin (IG) B-cell receptor and T-cell receptor (TCR) gene rearrangements and oncogenic translocations from bulk NGS data
 
