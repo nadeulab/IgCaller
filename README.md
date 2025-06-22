@@ -1,5 +1,6 @@
+<img src="IgCaller_logo.png" align="right" width="190" style="margin-top: 30px;">
 # IgCaller
-![](IgCaller_logo.png){align="right" width="190"}
+
 #### Reconstructing immunoglobulin (IG) B-cell receptor and T-cell receptor (TCR) gene rearrangements and oncogenic translocations from bulk NGS data
 
 IgCaller is a python program designed to fully characterize the immunoglobulin (IG) B-cell receptor and T-cell receptor (TCR) gene rearrangements and oncogenic translocations in lymphoid neoplasms. It was originally developed to reconstruct the IG gene from WGS data. More recently, it has been extended to characterize also the TCR and to work with WES and capture-based NGS data. For more information, please read the original [publication](https://rdcu.be/b5tsw).
