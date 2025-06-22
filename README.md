@@ -161,8 +161,11 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110)
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations.
   * Improved phasing of reads along the V gene.
-  * Improved annotation of oncogenic alterations (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, -cgOncoDist)
+  * Improved annotation of oncogenic alterations, including the identification of N-nucleotides (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, -cgOncoDist).
+  * Added the reconstruction of partial (J-D only) rearrangements.
   * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements/loci (see -pp, -ppc, and -sp).
+  * Added the possibility to report the read names of the reads associated with each specific rearrangement identified.
+  * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Other minor improvements and edits.
 * v1.4-beta (not stored as a formal release):
   * Dockerfile and shebang included following [pull #6](https://github.com/ferrannadeu/IgCaller/pull/6).
