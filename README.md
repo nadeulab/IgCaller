@@ -1,6 +1,6 @@
 # IgCaller
 
-<img src="IgCaller_logo.png" align="right" width="200">
+<img src="IgCaller_logo.png" align="right" width="220">
 
 #### Reconstructing immunoglobulin (IG) B-cell receptor and T-cell receptor (TCR) gene rearrangements and oncogenic translocations from genomic data in lymphoid neoplasms
 
