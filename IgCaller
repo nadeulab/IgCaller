@@ -22,6 +22,7 @@ parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0 
 
 parser.add_argument('-v', '--version', action='version', version="%(prog)s v2.0")
 
+# Mandatory:
 parser.add_argument('-I', '--inputsFolder',
 					dest = "inputsFolder",
 					action = "store",
@@ -81,6 +82,7 @@ parser.add_argument('-R', '--refGenome',
 					default = None,
 					help = "Reference genome fasta") 
 
+# Gene/receptor to be analyzed:
 parser.add_argument('-g', '--geneToAnalyze',
 					dest = "geneToAnalyze",
 					action = "store",
@@ -88,6 +90,7 @@ parser.add_argument('-g', '--geneToAnalyze',
 					default = "ig",
 					help = "Gene/receptor to be analyzed [ig/tcr/both, default=ig]") 
 
+# Purity of the tumor sample:
 parser.add_argument('-p', '--tumorPurity', 
 					dest = "tumorPurity",
 					action = "store",
@@ -95,6 +98,7 @@ parser.add_argument('-p', '--tumorPurity',
 					type = float,
 					help = "Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, use 1.") 
 
+# Output path and options:
 parser.add_argument('-o', '--outputPath',
 					dest = "outputPath",
 					action = "store",
@@ -112,8 +116,39 @@ parser.add_argument('-rrn', '--reportReadNames',
 					action = "store",
 					default = "no",
 					choices = ["no", "yes"],
-					help = "Report read names associated with each rearrangements found. [no/yes, default=no]")
+					help = "Report read names associated with each rearrangement found. [no/yes, default=no]")
 
+# Annotation tool and database:
+parser.add_argument('-a', '--annotateSeq',
+					dest = "annotateSeq",
+					action = "store",
+					default = "igblast",
+					choices = ['builtin', 'igblast'],
+					help = "Annotate sequence using IgCaller built-in annotation workflow or using IgBlast [builtin/igblast, default=igblast]") 
+
+parser.add_argument('-aa', '--annotateSeqDB',
+					dest = "annotateSeqDB",
+					action = "store",
+					default = "imgt",
+					choices = ['imgt', 'ogrdb'],
+					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.") 
+
+# CLL-specific annotations:
+parser.add_argument('-subsets', '--subsetsAnnotation', 
+					dest = "subsetsAnnotation",
+					action = "store",
+					default = "no",
+					choices = ['no', 'imgt', 'major'],
+					help = "Should CLL stereotype subset be annotated? 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets using Agathangelidis et al Blood 2021 definitions [no/imgt/major, default = no]")
+
+parser.add_argument('-R110', '--R110annotation', 
+					dest = "R110annotation",
+					action = "store",
+					default = "no",
+					choices = ['no', 'yes'],
+					help = "Should the R110 mutation in IGLV3-21 be annotated? [no/yes, default = no]")
+
+# IG/TCR reconstruction:
 parser.add_argument('-hs', '--highSensitivity', 
 					dest = "highSensitivity",
 					action = "store",
@@ -142,48 +177,6 @@ parser.add_argument('-mnns', '--minimumNumberOfNucleotidesSoft',
 					type = int,
 					help = "Minimum number of soft-cliped nucleotides to consider a read as split-read and needed to be align on a J/V break in order to recover the read as split [integer number higher than 0, default = 5]")
 
-parser.add_argument('-a', '--annotateSeq',
-					dest = "annotateSeq",
-					action = "store",
-					default = "igblast",
-					choices = ['builtin', 'igblast'],
-					help = "Annotate sequence using IgCaller built-in annotation workflow or using IgBlast [builtin/igblast, default=igblast]") 
-
-parser.add_argument('-aa', '--annotateSeqDB',
-					dest = "annotateSeqDB",
-					action = "store",
-					default = "imgt",
-					choices = ['imgt', 'ogrdb'],
-					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.") 
-
-parser.add_argument('-subsets', '--subsetsAnnotation', 
-					dest = "subsetsAnnotation",
-					action = "store",
-					default = "no",
-					choices = ['no', 'imgt', 'major'],
-					help = "Should CLL stereotype subset be annotated? 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets using Agathangelidis et al Blood 2021 definitions [no/imgt/major, default = no]")
-
-parser.add_argument('-R110', '--R110annotation', 
-					dest = "R110annotation",
-					action = "store",
-					default = "no",
-					choices = ['no', 'yes'],
-					help = "Should the R110 mutation in IGLV3-21 be annotated? [no/yes, default = no]")
-
-parser.add_argument('-pp', '--estimatePurity', 
-					dest = "estimatePurity",
-					action = "store",
-					default = "yes",
-					choices = ['no', 'yes'],
-					help = "Estimate purity [no/yes, default=yes]. If specified, the purity is estimated based on the IG/TCR rearrangements and reported in the output. It does not effect the scores and internal cutoffs.") 
-
-parser.add_argument('-ppc', '--estimatePurityCoverage', 
-					dest = "estimatePurityCoverage",
-					action = "store",
-					default = "no",
-					choices = ['no', 'yes', "igh"],
-					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.") 
-
 parser.add_argument('-shortV', '--shortReportedVseq', 
 					dest = "shortV",
 					action = "store",
@@ -196,7 +189,7 @@ parser.add_argument('-mq', '--mappingQuality',
 					action = "store",
 					default = "0",
 					type = int,
-					help = "Mapping quality cut off to filter out reads for IG reconstruction [default=0]") 
+					help = "Mapping quality cut off to filter out reads for IG/TCR V(D)J reconstruction [default=0]") 
 
 parser.add_argument('-bq', '--baseQuality',
 					dest = "baseq",
@@ -246,13 +239,6 @@ parser.add_argument('-sf', '--scoreCutoffFilter',
 					type = check_empty_or_integer,
 					help = "Minimum score supporting a gene rearrangement in order to be kept during the analysis [default='empty'; will consider 2 for seqDepth = low, 4 for int, and 6 for high]")
 
-parser.add_argument('-sp', '--scoreCutoffPurity',
-					dest = "scoreCutoffPurity",
-					action = "store",
-					default = "",
-					type = check_empty_or_integer,
-					help = "Minimum score supporting a rearrangement in order to be considered during purity calculation [default='empty'; same as 'scoreCutoff']")
-
 parser.add_argument('-scsr', '--scoreCutoffCSR',
 					dest = "scoreCutoffCSR",
 					action = "store",
@@ -260,6 +246,7 @@ parser.add_argument('-scsr', '--scoreCutoffCSR',
 					type = check_empty_or_integer,
 					help = "Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high]")
 
+# Oncogenic rearrangements (i.e., translocations, etc.):
 parser.add_argument('-roor', '--runOnlyOncogenicRearrangements',
 					dest = "runOnlyOncogenicRearrangements",
 					action = "store",
@@ -336,6 +323,29 @@ parser.add_argument('-cgOncoDist', '--customGenesOncoIgDistance',
 					type = int,
 					help = "For genes provided in -cgOnco, maximum distance in base pairs from the non-IG/TCR breakpoint to the closest gene to annotate it [default=500000]")
 
+# Purity calculation:
+parser.add_argument('-pp', '--estimatePurity', 
+					dest = "estimatePurity",
+					action = "store",
+					default = "yes",
+					choices = ['no', 'yes'],
+					help = "Estimate purity [no/yes, default=yes]. If specified, the purity is estimated based on the IG/TCR rearrangements and reported in the output. It does not effect the scores and internal cutoffs.") 
+
+parser.add_argument('-ppc', '--estimatePurityCoverage', 
+					dest = "estimatePurityCoverage",
+					action = "store",
+					default = "no",
+					choices = ['no', 'yes', "igh"],
+					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.") 
+
+parser.add_argument('-sp', '--scoreCutoffPurity',
+					dest = "scoreCutoffPurity",
+					action = "store",
+					default = "",
+					type = check_empty_or_integer,
+					help = "Minimum score supporting a rearrangement in order to be considered during purity calculation [default='empty'; same as 'scoreCutoff']")
+
+# Other arguments:
 parser.add_argument('-ptsam', '--pathToSamtools',
 					dest = "pathToSamtools",
 					action = "store",
