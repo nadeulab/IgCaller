@@ -156,9 +156,9 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
 
 ### Releases
 * v2.0:
-  * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) for details and argument -g.
+  * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
   * Added the reconstruction of partial (J-D only) rearrangements.
-  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements/loci (see -pp, -ppc, and -sp).
+  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see -pp, -ppc, and -sp).
   * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme or IgBLAST using IMGT or OGRDB databases (see arguments -a and -aa).
   * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110)
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, -cgOncoDist).
