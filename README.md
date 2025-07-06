@@ -9,9 +9,11 @@ IgCaller is a python program designed to fully characterize the immunoglobulin (
 
 ### Requirements
 
-IgCaller is based on python3 and requires the following modules: statistics, regex (v2.5.29 and v2.5.30), argparse (v1.1), numpy (1.16.2, v1.16.3, and 1.21.6), scipy (v1.2.1, v1.3.0 and 1.7.3), and biopython (v1.81). Although providing the versions of the modules tested, we are not aware about any specific version requirement for running IgCaller. Other modules used by IgCaller but already included in base python are: subprocess, sys, os, itertools, operator, collections, gzip, pickle, difflib.
+* IgCaller is based on python3 and requires the following modules: statistics, regex (v2.5.29 and v2.5.30), argparse (v1.1), numpy (1.16.2, v1.16.3, and 1.21.6), scipy (v1.2.1, v1.3.0 and 1.7.3), and biopython (v1.81). Although providing the versions of the modules tested, we are not aware about any specific version requirement for running IgCaller. Other modules used by IgCaller but already included in base python are: subprocess, sys, os, itertools, operator, collections, gzip, pickle, difflib.
 
-The only required non-python program is [samtools](http://www.htslib.org) (v1.16.1 and v1.22 have been tested).
+* The only required non-python program is [samtools](http://www.htslib.org) (v1.16.1 and v1.22 have been tested).
+
+* IgCaller has only been validated with BAM files obtained using [BWA-MEM](http://bio-bwa.sourceforge.net/) (v0.7.15 and v0.7.17 have been tested).
 
 ### Installation
 
@@ -48,20 +50,20 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	inputsFolder (-I): Path to folder containing IgCaller reference files.
 *	genomeVersion (-V): Reference genome version [hg19, hg38].
 *	chromosomeAnnotation (-C): Chromosome annotation [ensembl = without 'chr' (i.e. 1); ucsc = with 'chr' (i.e. chr1)].
-*	bamT (-T): Path to tumor BAM file aligned using [BWA-MEM](http://bio-bwa.sourceforge.net/) (v0.7.15 and v0.7.17 have been tested).
-* sequencing (-seq): Sequencing technique [whole-genome sequencing (wgs), whole-exome sequencing (wes), high-coverage capture NGS (capture)), or amplicon-based NGS (amplicon)].
+*	bamT (-T): Path to tumor BAM file.
+* sequencing (-seq): Sequencing technique [whole-genome sequencing (wgs), whole-exome sequencing (wes), high-coverage capture NGS (capture), or amplicon-based NGS (amplicon)].
 * sequencingDepth (-seqDepth): Sequencing depth [low (~30x), int (50-200x), high (>250x)].
-*	bamN (-N): Path to normal bam file, if avilable.
+*	bamN (-N): Path to normal BAM file, if available.
 *	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used to calculate tumor purity estimates based on coverage.
-*	refGenome (-R): Path to reference genome FASTA file (not mandatory, but recommended, when specifying a normal BAM file. Mandatory when bamN is not specified).
+*	refGenome (-R): Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.
 
 #### Optional arguments:
 ###### Gene/receptor to be analyzed:
 *	geneToAnalyze (-g): Gene/receptor to be analyzed [ig/tcr/both, default=ig].
 
 ###### Amplicon-based sequencing:
-*	primer (-pr): Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3, default=None]. It is used to calculate the percentage of identity starting with the sequence after the primer location. Only applicable when igblast is used for the annotation using the '-a' argument (recommended). Required if '-seq amplicon'. See parameter '--primerStringency' for further tunning.
-*	primerStringency (-prs): Primer stringency [strict/permissive, default=strict]: strict = only annotate sequences with nucleotides found after the theoric location of the primer. permissive = annotate sequences even if they start later than the theoric location of the primer. Only applicable when igblast is used for the annotation using the '-a' argument (recommended).
+*	primer (-pr): Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3, default=None]. It is used to calculate the percentage of identity starting with the sequence after the primer location. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended). Required if '-seq amplicon'. See parameter '--primerStringency' for further tunning.
+*	primerStringency (-prs): Primer stringency [strict/permissive, default=strict]: strict = only annotate sequences with nucleotides found after the theoric location of the primer. permissive = annotate sequences even if they start later than the theoric location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).
 
 ###### Purity of the tumor sample:
 *	tumorPurity (-p): Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, use 1.
@@ -72,7 +74,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * reportReadNames (-rrn): Report read names associated with each rearrangement found [no/yes, default=no].
 
 ###### Annotation tool and database:
-* annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBlast [builtin/igblast, default=igblast]..
+* annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBLAST [builtin/igblast, default=igblast].
 * annotateSeqDB (-aa): Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.
 
 ###### CLL-specific annotations:
