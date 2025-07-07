@@ -165,8 +165,8 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
   * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of rearrangements). See arguments -seq, -pr, and -prs for further details.
   * Added the reconstruction of partial (J-D only) rearrangements.
-  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -pp, -ppc, and -sp).
-  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see arguments -a and -aa). We recommend using IgBLAST, especially when the normal (i.e., germline) BAM file is not available.
+  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, and -scp).
+  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see arguments -a and -aa). We recommend using IgBLAST (default), especially when the normal (i.e., germline) BAM file is not available.
   * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110)
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides. See arguments -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details.
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations.
