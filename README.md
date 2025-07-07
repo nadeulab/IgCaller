@@ -81,7 +81,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 
 ###### IG/TCR reconstruction:
 * highSensitivity (-hs): highSensitivity = no: runs faster by skipping low-confidence rearrangements. highSensitivity = yes: may run significantly slower in some samples since it tries to recover low-confidence rearrangements [no/yes, default = yes].
-* keepInsertSizeOnlyRearrangements (-kisor): Specify if rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept. keepInsertSizeOnlyRearrangements = yes: may run significantly slower [no/yes, default = no].
+* keepInsertSizeOnlyRearrangements (-kisor): Specify if IG/TCR rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept. If kept, they are labeled with the tag 'Rearrangement without junction coverage' and the nucleotide sequences, functionality, identity to germline, and other features are not computed [no/yes, default = no].
 * phaseReadsBasedOnMutations (-prbm): Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score and mapping quality [no/yes, default = yes].
 * minimumNumberOfNucleotidesSoft (-mnns): Minimum number of soft-cliped nucleotides to consider a read as split-read and needed to be align on a J/V break in order to recover the read as split [integer number higher than 0, default = 5].
 * shortReportedVseq (-shortV): Make V sequence start at (approx) FR1 [yes/no, default=yes].
