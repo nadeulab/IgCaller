@@ -17,6 +17,7 @@ import gzip
 import pickle
 from difflib import SequenceMatcher
 from Bio.Align import PairwiseAligner
+from Bio import pairwise2
 
 # dicts
 complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'R': 'Y', 'Y': 'R', 'S': 'S', 'W': 'W', 'K': 'M', 'M': 'K', 'B': 'V', 'V': 'B', 'D': 'H', 'H': 'D', 'N': 'N', 'X': 'N', '[': ']', ']': '[', '(': ')', ')': '('}
@@ -174,7 +175,7 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 	samfile = open(miniSamT, "r")
 	
 	store = {}
-
+	
 	for i in samfile:
 		
 		w = i.rstrip("\n").split("\t")
@@ -201,15 +202,35 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 			split1 = re.findall(r'[A-Za-z]|[0-9]+', w[5])
 			two1 = [split1[x:x+2] for x in range(0, len(split1),2)]
 			split2 = w[10].split(',') # split SA...
-		
+			
 			if GENE != "CSR" and sum([int(i[0]) for i in two1 if "S" in i]) >= minimumNumberOfNucleotidesSoft: # split if S >= minimumNumberOfNucleotidesSoft in cigar ## removed from code '(w[10].startswith("SA:Z") or )' and from comment 'SA or ' due to incorrect split annotation when "alt" contigs in ref genome [github issue #5]
-				if abs(int(w[8])) > 10000:  w[11] = "split-insertSize"
-				else: w[11] = "split"
+				# check if split, split-insertSize (based on type of SV) or just an insertSize:
+				if abs(int(w[8])) <= 10000: 
+					w[11] = "split"
+				else:
+					# get type of alteration
+					if int(w[1]) in [97, 161, 99, 163, 2145, 2209, 2147, 2211] and int(w[8]) > 0: svType = "Deletion" # reads: -> <-
+					elif int(w[1]) in [145, 81, 147, 83, 2193, 2193, 2195, 2131] and int(w[8]) < 0: svType = "Deletion" # reads: -> <-
+					elif int(w[1]) in [65, 129, 2113, 2177]: svType = "Inversion2" # reads -> ->
+					elif int(w[1]) in [113, 177, 2161, 2225]: svType = "Inversion1" # reads <- <-
+					else: svType = "other"
+					# get if split-insertSize or just insertSize based on cigar and type of alteration
+					if min([count for count, item in enumerate(two1) if "M" in item]) < min([count for count, item in enumerate(two1) if "S" in item]): cig = "MS"
+					else: cig = "SM"
+					if int(w[8]) > 0 and cig == "MS" and svType == "Deletion":
+						w[11] = "split-insertSize"
+					elif int(w[8]) < 0 and cig == "SM" and svType == "Deletion":
+						w[11] = "split-insertSize"
+					elif int(w[8]) < 0 and cig == "MS" and svType == "Inversion2":
+						w[11] = "split-insertSize"
+					elif int(w[8]) > 0 and cig == "SM" and svType == "Inversion1":
+						w[11] = "split-insertSize"
+					else: w[11] = "insertSize"
 				
 			elif abs(int(w[8])) > 10000:  # insertSize if insert size > 10000 [ J-V = 70000bp aprox ]
 				w[11] = "insertSize"
-
-			if 	w[11] == "split" or w[11] == "split-insertSize": # add 2 columns
+			
+			if w[11] == "split" or w[11] == "split-insertSize": # add 2 columns
 				
 				# 1st_pos
 				two1 = [split1[x:x+2] for x in range(0, len(split1),2)]
@@ -317,11 +338,18 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 						
 						store[w[0]] = w
 				
-				if (w[11] == "insertSize" and store[w[0]][11] == "insertSize") or (w[11] == "insertSize" and store[w[0]][11] == "split-insertSize"): # or (w[11] == "split-insertSize" and store[w[0]][11] == "split-insertSize"): no pot ser mai split-insertSize and split-insertSize
+				if (w[11] == "insertSize" and store[w[0]][11] == "insertSize") or (w[11] == "insertSize" and store[w[0]][11] == "split-insertSize"):
 					if w[14] != "NA":
 						store[w[0]][14] = w[14]
 					else:
 						store[w[0]][15] = w[15]
+				if (w[11] == "split-insertSize" and store[w[0]][11] == "split-insertSize"):
+					if w[14] != "NA":
+						store[w[0]][14] = w[14]
+						store[w[0]][12] = w[14]
+					else:
+						store[w[0]][15] = w[15]
+						store[w[0]][13] = w[15]
 	
 	return(store)
 	
@@ -401,7 +429,7 @@ def findJandVgenes(annot_table, bedFile, GENE, genomeVersion):
 				VDJ.close()
 
 		# We classify reads according to their orientation (flags):
-		if w[11] == "insertSize" or ( w[11] == "split-insertSize" and w[13] == "NA" ):
+		if w[11] == "insertSize" or ( w[11] == "split-insertSize" and w[10] == "NA" ):
 			
 			# reads: -> <-
 			if int(w[1]) in [97, 161, 99, 163, 2145, 2209, 2147, 2211] and int(w[8]) > 0: w.append("Deletion")
@@ -418,8 +446,8 @@ def findJandVgenes(annot_table, bedFile, GENE, genomeVersion):
 		
 		else:
 			# no information of soft clipped map:
-			if w[10] == "NA": w.append("NotComplete") 
-			
+			if w[10] == "NA": 
+				w.append("NotComplete") 
 			else: # split			
 				# get strands
 				if int(flagToCustomBinary(w[1])[4]) == 0: strand = "+"
@@ -432,13 +460,13 @@ def findJandVgenes(annot_table, bedFile, GENE, genomeVersion):
 				
 				elif (strand == "+" and strandSA == "-") or (strand == "-" and strandSA == "+"):
 					# reads -> ->
-					if int(w[1]) in [65, 129, 99, 97, 2113, 2177, 2147, 2145]: w.append("Inversion2")
+					if int(w[1]) in [65, 129, 99, 97, 147, 145, 2113, 2177, 2147, 2145]: w.append("Inversion2")
 
 					# reads <- <-
 					elif int(w[1]) in [113, 177, 2161, 2225]: w.append("Inversion1")
 
 					else: w.append("NA")
-					
+				
 				# other potential SV not considered:
 				else: w.append("NA")
 		
@@ -495,7 +523,7 @@ def findCombinationsJandV(annot_table_JV, GENE):
 			ll.append(i)
 	return(ll)
 
-def assignPositionsToJandV(l, annot_table_JV):
+def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
 	
 	VJ_positions = {} # we store pairs J-V positions and if they come from split/insertsize or both in some cases
 	data = {} # we store count of pairs and individuals J/V by positions (from split) and by gene names (by insertSize) 
@@ -593,7 +621,7 @@ def assignPositionsToJandV(l, annot_table_JV):
 				pos[key] = JV
 				
 				# info still no info, get info from paired-insertSize, unpaired insertSize and unpaired split
-				if pos[key] == []:
+				if pos[key] == [] or (seq == "amplicon" and GENE == "IGH"): # exception for amplicon and IGH to get additional pairs by insertSize (only IGH due to N-D-N plus SHM)
 					ANNOT_TABLE_JV = open(annot_table_JV, "r")
 					Jpos = []
 					Vpos = []
@@ -633,7 +661,8 @@ def assignPositionsToJandV(l, annot_table_JV):
 					
 					JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
 					
-					pos[key] = JV
+					if pos[key] == []: pos[key] = JV
+					else: pos[key].extend([jvPair for jvPair in JV if jvPair not in pos[key]])
 	
 	return(VJ_positions, data, pos)
 
@@ -713,7 +742,7 @@ def addPositionsAndOccurrences(GENE, pos, bedFile, shortV, data):
 	# return information
 	return(information)
 	
-def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity):
+def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq):
 
 	informationClean = []
 
@@ -738,48 +767,50 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity):
 
 			# if no split-read support, check if the potential breakpoints are close to the expected regions of the gene
 			else:
-				# check position of break J
-				breakJ = "NA"
-				VDJ = open(bedFile, "r")
-				for k in VDJ:
-					v = k.rstrip("\n").split("\t")
-					if geneJ == v[3]:
-						breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
-						leftWinJ = breakJ-4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-25
-						rightWinJ = breakJ+25 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+4
-						potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
-						break
-				VDJ.close()	
+				if seq != "amplicon" or GENE != "IGH": # no doing this if amplicon and IGH because initially found breakpoints may be far away from the start of gene (only IGH due to N-D-N plus SHM)
+					
+					# check position of break J
+					breakJ = "NA"
+					VDJ = open(bedFile, "r")
+					for k in VDJ:
+						v = k.rstrip("\n").split("\t")
+						if geneJ == v[3]:
+							breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
+							leftWinJ = breakJ-4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-25
+							rightWinJ = breakJ+25 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+4
+							potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
+							break
+					VDJ.close()	
 
-				if breakJ == "NA": continue
-				if potentialBreakJ < leftWinJ or potentialBreakJ > rightWinJ: continue
-				
-				# check position of break V
-				breakV = "NA"
-				VDJ = open(bedFile, "r")
-				for k in VDJ:
-					v = k.rstrip("\n").split("\t")
-					if geneV == v[3]:
-						if mechanism == "Deletion":
-							breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
-							leftWinV = breakV-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-4
-							rightWinV = breakV+4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+10
-							potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
-						elif mechanism == "Inversion1" and GENE == "TRB":
-							breakV = int(v[1])
-							leftWinV = breakV-4
-							rightWinV = breakV+10
-							potentialBreakV = i[4]				
-						elif mechanism == "Inversion2" and GENE == "IGK":
-							breakV = int(v[2])
-							leftWinV = breakV-10
-							rightWinV = breakV+4
-							potentialBreakV = i[8]
-						break
-				VDJ.close()
-				
-				if breakV == "NA": continue
-				if potentialBreakV < leftWinV or potentialBreakV > rightWinV: continue
+					if breakJ == "NA": continue
+					if potentialBreakJ < leftWinJ or potentialBreakJ > rightWinJ: continue
+					
+					# check position of break V
+					breakV = "NA"
+					VDJ = open(bedFile, "r")
+					for k in VDJ:
+						v = k.rstrip("\n").split("\t")
+						if geneV == v[3]:
+							if mechanism == "Deletion":
+								breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
+								leftWinV = breakV-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-4
+								rightWinV = breakV+4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+10
+								potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
+							elif mechanism == "Inversion1" and GENE == "TRB":
+								breakV = int(v[1])
+								leftWinV = breakV-4
+								rightWinV = breakV+10
+								potentialBreakV = i[4]				
+							elif mechanism == "Inversion2" and GENE == "IGK":
+								breakV = int(v[2])
+								leftWinV = breakV-10
+								rightWinV = breakV+4
+								potentialBreakV = i[8]
+							break
+					VDJ.close()
+					
+					if breakV == "NA": continue
+					if potentialBreakV < leftWinV or potentialBreakV > rightWinV: continue
 
 				# if break close to the position where it should be found, append to informationClean
 				informationClean.append(i)
@@ -824,7 +855,7 @@ def addReadNames(GENE, information, annot_table_JV):
 	information.sort(key=lambda p: round(p[2]*2 + p[3], 1), reverse=True)
 	return(information)
 
-def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools):
+def getJandVsequences(round, seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup):
 	
 	if round == "first" and GENE in ["IGL", "TRA", "TRB", "TRD"]: # if IGL/TRA/TRB/TRD, switch V <-> J info
 		for i in information:
@@ -862,7 +893,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 					fr = " -f "+refGenome+" -r "
 					
 				# mpileup tumor all reads
-				subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT+ " > "+miniBamT.replace(".bam", "_output_mpileup.tsv"), shell=True) # allow -A (anomalous read pairs) in tumor sample only
+				subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT+ " > "+miniBamT.replace(".bam", "_output_mpileup.tsv")+" 2>> "+errLogMpileup, shell=True) # allow -A (anomalous read pairs) in tumor sample only
 				
 				if round == "first":
 					# mpileup tumor only reads spanning V-J
@@ -883,7 +914,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 						readNamesFile.close()
 						subprocess.call(pathToSamtools+"samtools view -@ "+threadsForSamtools+" -h -b -N "+readNamesFileTxt+" -o "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningJV.bam")+" "+miniBamT, shell=True)
 						subprocess.call(pathToSamtools+"samtools index "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningJV.bam"), shell=True) 
-						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningJV.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningJV.tsv"), shell=True)
+						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningJV.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningJV.tsv")+" 2>> "+errLogMpileup, shell=True)
 						if os.stat(miniBamT.replace(".bam", "_output_mpileup_readsSpanningJV.tsv")).st_size == 0:
 							O = open(miniBamT.replace(".bam", "_output_mpileup_readsSpanningJV.tsv"), "w")
 							for missingPos in range(i[z], i[z+1]+1):
@@ -913,7 +944,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 						readNamesFile.close()
 						subprocess.call(pathToSamtools+"samtools view -@ "+threadsForSamtools+" -h -b -N "+readNamesFileTxt+" -o "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningBreak.bam")+" "+miniBamT, shell=True)
 						subprocess.call(pathToSamtools+"samtools index "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningBreak.bam"), shell=True) 
-						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningBreak.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningBreak.tsv"), shell=True)
+						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningBreak.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningBreak.tsv")+" 2>> "+errLogMpileup, shell=True)
 						if os.stat(miniBamT.replace(".bam", "_output_mpileup_readsSpanningBreak.tsv")).st_size == 0:
 							O = open(miniBamT.replace(".bam", "_output_mpileup_readsSpanningBreak.tsv"), "w")
 							for missingPos in range(i[z], i[z+1]+1):
@@ -938,7 +969,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 					readNamesFile.close()
 					subprocess.call(pathToSamtools+"samtools view -@ "+threadsForSamtools+" -h -b -N "+readNamesFileTxt+" -o "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningRearrangement.bam")+" "+miniBamT, shell=True)					
 					subprocess.call(pathToSamtools+"samtools index "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningRearrangement.bam"), shell=True) 
-					subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningRearrangement.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningRearrangement.tsv"), shell=True)
+					subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamT.replace("miniBam.bam", "miniBam_readsSpanningRearrangement.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readsSpanningRearrangement.tsv")+" 2>> "+errLogMpileup, shell=True)
 					
 					if os.stat(miniBamT.replace(".bam", "_output_mpileup_readsSpanningRearrangement.tsv")).st_size == 0:
 						O = open(miniBamT.replace(".bam", "_output_mpileup_readsSpanningRearrangement.tsv"), "w")
@@ -951,13 +982,28 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 					for missingPos in range(i[z], i[z+1]+1):
 						O.write("%s\t%s\tNA\t0\tNA\tNA\n" %(chromGene, str(missingPos)))
 					O.close()
+
+					# if seq is amplicon, store input V sequence to keep previously recovered nucleotides
+					if seq == "amplicon" and z == 7:
+						if round == "second":
+							vSeqIn = i[12]
+							vSeqGermIn = i[13]
+						else: # third
+							vSeqIn = i[13]
+							vSeqGermIn = i[14]
+						tumorSeqBK = {}
+						germSeqBK = {}
+						nuc = int(i[z+1])-int(i[z]) + 1
+						for c in range(nuc):
+							tumorSeqBK[int(i[z])+c] = [vSeqIn[c]]
+							germSeqBK[int(i[z])+c] = [vSeqGermIn[c]]
 				
 				# check if mpileup result with all reads
 				if os.stat(miniBamT.replace(".bam", "_output_mpileup.tsv")).st_size != 0:
 					
 					# Normal seq:
 					if bamN is not None and pairedMode == "paired":
-						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamN+ " > "+miniBamN.replace(".bam", "_output_mpileup.tsv"), shell=True)
+						subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+fr+chromGene+":"+str(i[z])+"-"+str(i[z+1])+" "+miniBamN+ " > "+miniBamN.replace(".bam", "_output_mpileup.tsv")+" 2>> "+errLogMpileup, shell=True)
 						
 						normal = open(miniBamN.replace(".bam", "_output_mpileup.tsv"), "r")
 						wild = {} # normal patient sequence
@@ -1105,7 +1151,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 									mutPhasedDone = mutPhased
 									readNamePhaseMutTemp = []
 									readNamePhaseMut = []
-									subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B --output-QNAME -Q "+baseq+fr+mutPhased.split("_")[0]+" "+miniBamT+ " > "+miniBamT.replace(".bam", "_output_mpileup_MutPhased.tsv"), shell=True) # get reads spaining last mutation
+									subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B --output-QNAME -Q "+baseq+fr+mutPhased.split("_")[0]+" "+miniBamT+ " > "+miniBamT.replace(".bam", "_output_mpileup_MutPhased.tsv")+" 2>> "+errLogMpileup, shell=True) # get reads spaining last mutation
 									MUTPHASE = open(miniBamT.replace(".bam", "_output_mpileup_MutPhased.tsv"), "r")
 									for mutPhaseLine in MUTPHASE:
 										vp = mutPhaseLine.rstrip("\n").split("\t")
@@ -1178,7 +1224,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 									subprocess.call(pathToSamtools+"samtools index "+miniBamT.replace("miniBam.bam", "miniSam_readNameMutPhased.bam"), shell=True) 
 								
 								# mpileup for the ongoing position only using bam with reads phased with last mutation
-								subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+j.rstrip("\n").split("\t")[1]+"-"+j.rstrip("\n").split("\t")[1]+" "+miniBamT.replace("miniBam.bam", "miniSam_readNameMutPhased.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readNameMutPhased.tsv"), shell=True)
+								subprocess.call(pathToSamtools+"samtools mpileup -d 0 -a -A -B -Q "+baseq+fr+chromGene+":"+j.rstrip("\n").split("\t")[1]+"-"+j.rstrip("\n").split("\t")[1]+" "+miniBamT.replace("miniBam.bam", "miniSam_readNameMutPhased.bam")+ " > "+miniBamT.replace(".bam", "_output_mpileup_readNameMutPhased.tsv")+" 2>> "+errLogMpileup, shell=True)
 								currentJV_MUTPHASE = open(miniBamT.replace(".bam", "_output_mpileup_readNameMutPhased.tsv"), "r")
 								for mutPhaseLine in currentJV_MUTPHASE:
 									depthMutPhase = int(mutPhaseLine.rstrip("\n").split("\t")[3]) # keep at depthMutPhase
@@ -1213,8 +1259,12 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 									tumSeq.append(snps[0])
 									normSeq.append(snps[0])
 								else:
-									tumSeq.append("N")
-									normSeq.append(wild[sq][0])
+									if round != "first" and seq == "amplicon" and z == 7:
+										tumSeq.append(tumorSeqBK[sq][0])
+										normSeq.append(germSeqBK[sq][0])
+									else:
+										tumSeq.append("N")
+										normSeq.append(wild[sq][0])
 							else:
 								passar -= 1
 								
@@ -1404,7 +1454,7 @@ def getJandVsequences(round, phaseReadsBasedOnMutations, information, annot_tabl
 			i[14] = temporary[3]
 			i[15] = temporary[4]
 
-		if "Kde" not in i[0] and "RSS" not in i[0]:
+		if "Kde" not in i[0] and "RSS" not in i[0] and i[4] != "NA":
 			# do reverse complement if needed
 			if i[1] == "Inversion1" or i[1] == "Inversion2": # TRB inversion1 V in strand positive or IGK inversion2 V in strand negative
 				idxSum = 0 if round == "first" else 1 # 1 if second or third round
@@ -1461,9 +1511,82 @@ def createConsensusD(DseqTemp, GENE, i, Dseqs):
 		geneNames = " - ".join([i[0].split(" - ")[0], dGeneName, i[0].split(" - ")[1]]) # update J-V to J-D-V
 
 	# add N-D-N / N
-	return(geneNames, DseqConsensus)			
+	return(geneNames, DseqConsensus)		
 
-def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft):
+def fillInGapBetweenDandV(dSeq, potentialReadNames, i, bedFile, minimumNumberOfNucleotidesSoft, refGenome, miniBamT, pathToSamtools, errLogMpileup):
+    
+	# define minimum length to consider for alignment
+	minimumNumberOfNucleotidesSoftAmplicon = minimumNumberOfNucleotidesSoft + 2
+	windowInBreak = 5
+
+	# get info from i
+	vGene = i[0].split(" - ")[1]
+	vBreak = i[7]
+	vEnd = i[8]
+	readNamesList = potentialReadNames
+
+	# get start V gene brom bedFile
+	VDJ = open(bedFile, "r")
+	for k in VDJ:
+		v = k.rstrip("\n").split("\t")
+		if vGene == v[3]:
+			chrom = v[0]
+			startV = int(v[1]) - windowInBreak
+			break
+	VDJ.close()
+	
+	# subset miniBamT with reads of rearrangement
+	fillInReadsTxt = miniBamT.replace(".bam", "_fillInReads.txt")
+	miniBamTreadsFillIn = miniBamT.replace(".bam", "_fillInReads.bam")
+	O = open(fillInReadsTxt, "w")
+	for rn in readNamesList:
+		O.write(rn+"\n")
+	O.close()
+	comm = pathToSamtools+"samtools view -b -h -N "+fillInReadsTxt+" -o "+miniBamTreadsFillIn+" "+miniBamT
+	subprocess.call(comm, shell=True)
+	subprocess.call(pathToSamtools+"samtools index "+miniBamTreadsFillIn, shell=True)
+	
+	# mpileup to get reference sequence
+	comm = pathToSamtools+"samtools mpileup -d 0 -a -A -f "+refGenome+" -r "+str(chrom)+":"+str(startV)+"-"+str(vEnd)+" "+miniBamTreadsFillIn+" > "+miniBamTreadsFillIn.replace(".bam", "_mpileup.tsv")+" 2>> "+errLogMpileup
+	subprocess.call(comm, shell=True)
+	
+	# get potential gap sequence
+	MPILEUP = open(miniBamTreadsFillIn.replace(".bam", "_mpileup.tsv"), "r")
+	potentialGap = ""
+	for mLine in MPILEUP:
+		mList = mLine.rstrip("\n").split("\t")
+		if int(mList[1]) < vBreak+minimumNumberOfNucleotidesSoftAmplicon:
+			potentialGap = potentialGap+mList[2]
+		else:
+			break
+	MPILEUP.close()
+	
+	# align dSeq against potentialGap to get missingNucleotides
+	vStartNucleotidesGermline = "NotFound"
+	vStartNucleotidesTumor = "NotFound"
+	gapFound = "NotFound"
+	nGapFound = "NotFound"
+	if potentialGap != "":
+		dAlignment = pairwise2.align.localms(potentialGap, dSeq, 2, -1, -1000, -1000)
+		# get alignment that ends at the minimum position (closer to the start position of the V gene)
+		bestFirstAlignment = min(dAlignment, key=lambda aln: aln.end)
+		# force stitching (potentialGap [a]: ---xx[nnn], dSeq [b]: nnnxx----)
+		if not bestFirstAlignment.seqA.endswith("-") and not bestFirstAlignment.seqB.startswith("-"):
+			numMatches = sum(1 for a, b in zip(bestFirstAlignment.seqA[bestFirstAlignment.start:bestFirstAlignment.end], bestFirstAlignment.seqB[bestFirstAlignment.start:bestFirstAlignment.end]) if a == b and a != "-" and b != "-")
+			lenAlignment = bestFirstAlignment.end - bestFirstAlignment.start
+			ratioMatchesMissmatches = numMatches/lenAlignment
+			# force minimum length and matches in alignment based on position
+			empySeqBstart = bestFirstAlignment.start - (len(re.match(r"^-+", bestFirstAlignment.seqA).group()) if re.match(r"^-+", bestFirstAlignment.seqA) else 0)
+			condiA = empySeqBstart < 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8
+			condiB = empySeqBstart >= 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoftAmplicon and ratioMatchesMissmatches >= 0.85
+			if condiA or condiB:
+				gapFound = bestFirstAlignment.seqA[bestFirstAlignment.end:-minimumNumberOfNucleotidesSoftAmplicon]
+				nGapFound = "N"*len(gapFound)
+				vStartNucleotidesGermline = bestFirstAlignment.seqA[bestFirstAlignment.start:bestFirstAlignment.end]
+				vStartNucleotidesTumor = bestFirstAlignment.seqB[bestFirstAlignment.start:bestFirstAlignment.end]
+	return(vStartNucleotidesGermline, vStartNucleotidesTumor, gapFound, nGapFound)
+	
+def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft, seq, bedFile, refGenome, miniBamT, pathToSamtools, errLogMpileup):
 	
 	readsAlreadyRecovered = [] # list to append readNames when already recovered
 	toAddInInformation = [] # list to append to Information if same D with same length
@@ -1476,54 +1599,120 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 			if geneRound == 1:
 				i.append("")
 				i.append("")
-
 			# Get soft clipped start/end J-V :  
 			if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
 				breakJ = int(i[5])
 				breakV = int(i[7]) if i[1] == "Deletion" else int(i[8]) # for IGK Inversion2
 			else:
-				breakV = int(i[4]) # it is J 
+				breakV = int(i[4]) # it is J
 				breakJ = int(i[8]) if i[1] == "Deletion" else int(i[7]) # it is V  # for TRB Inversion1
 			
 			DseqTemp = []
-			
+			nonMatchedDsInJ = [] # list to append tupple of readName - D seq not matched in J
+
 			if not "IGKKde" in i[0] and not "IGKRSS" in i[0]:
 				ANNOT_TABLE_JV = open(annot_table_JV, "r")
 				for j in ANNOT_TABLE_JV:
 					w = j.rstrip("\n").split("\t")
 					if w[0] in readsAlreadyRecovered: continue
-
+					
 					if w[11].startswith("split"):
 
 						# if information last value J and first value V coincide with w split values
 						if breakJ == int(w[12].replace("NA", "0")) and breakV == int(w[13].replace("NA", "0")):
-							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
-							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
-							split = re.findall(r'[A-Za-z]|[0-9]+', w[10].split(",")[3])
-							cigar2 = [split[x:x+2] for x in range(0, len(split),2)]
-							# MS cigar
-							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-								mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) # we add the numbers previous to M and I
-								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar2 ]) # we add numbers previous to S
-							# SM cigar
-							else:
-								mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar2 ]) # we add the numbers previous to M and I
-								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
 							
-							DseqTemp.append(w[9][mStart:mEnd]) # we analyse from M,I+seq until seq-everything but S
-							readsAlreadyRecovered.append(w[0])
+							# split or split-insertSize with SA info in alignment
+							if w[10] != "NA":
+								split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
+								cigar1 = [split[x:x+2] for x in range(0, len(split), 2)]
+								split = re.findall(r'[A-Za-z]|[0-9]+', w[10].split(",")[3])
+								cigar2 = [split[x:x+2] for x in range(0, len(split), 2)]
+								# MS cigar
+								if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
+									mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) # we add numbers previous to M and I
+									if w[20] == "Deletion": subcigar2 = cigar2[:min([i for i in range(len(cigar2)) if cigar2[i][1] == "M"])] # limit cigar2 to first M
+									else: subcigar2 = cigar2
+									mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar2 ]) # we add numbers previous to S
+								# SM cigar
+								else:
+									mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar2 ]) # we add numbers previous to M and I
+									if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+									else: subcigar1 = cigar1
+									mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
+								
+								DseqTemp.append(w[9][mStart:mEnd]) # we analyse from M,I+seq until seq-everything but S
+								readsAlreadyRecovered.append(w[0])
 
+							# split-insertSize and split-insertSize without SA info in alignment
+							else: 
+								# get soft clipped in J and V breaks
+								jUnmap = ""
+								vUnmap = ""
+								comm = pathToSamtools+"samtools view "+miniBamT+" | grep "+w[0]+" > "+miniBamT.replace(".bam", "_spliInsert2reads.txt")
+								subprocess.call(comm, shell=True)
+								
+								SPLIT2READS = open(miniBamT.replace(".bam", "_spliInsert2reads.txt"), "r")
+								for split2read in SPLIT2READS:
+									split2readList = split2read.rstrip("\n").split("\t")
+									split = re.findall(r'[A-Za-z]|[0-9]+', split2readList[5])
+									cigar1 = [split[x:x+2] for x in range(0, len(split), 2)]
+									# MS cigar
+									if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
+										mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) - 1
+									# SM cigar
+									else:
+										if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+										else: subcigar1 = cigar1
+										mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ])
+										mStart = 0
+									if int(w[12]) == int(split2readList[3])+mStart:
+										jUnmap = split2readList[9][mStart+1:]
+									elif int(w[13]) == int(split2readList[3])+mStart:
+										vUnmap = split2readList[9][:mEnd]
+								SPLIT2READS.close()
+
+								# align soft clipped to get entire sequence
+								if jUnmap != "" and vUnmap != "":
+									unmapAlignment = pairwise2.align.localms(jUnmap, vUnmap, 2, -1, -1000, -1000)[0]
+									# force stitching condiA (a: xxxxx, b: xxxxx) or condiB (a: nnnxx--, b:---xxnnn)
+									condiA = not unmapAlignment.seqA.startswith("-") and not unmapAlignment.seqA.endswith("-") and not unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
+									condiB = not unmapAlignment.seqA.startswith("-") and unmapAlignment.seqA.endswith("-") and unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
+									if condiA or condiB:
+										numMatches = sum(1 for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB) if a == b and a != "-" and b != "-")
+										lenAlignment = unmapAlignment.end - unmapAlignment.start
+										ratioMatchesMissmatches = numMatches/lenAlignment
+										# force minimum length and matches in alignment
+										if lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8:
+											unmapNucs = []
+											for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB):
+												if a != "-" and b == "-":
+													unmapNucs.append(a)
+												elif a == "-" and b != "-":
+													unmapNucs.append(b)
+												elif a != "-" and b != "-" and a == b:
+													unmapNucs.append(a)
+												else:
+													unmapNucs.append("N")
+											unmapSeq = "".join(unmapNucs)
+											# append to DseqTemp
+											DseqTemp.append(unmapSeq)
+											readsAlreadyRecovered.append(w[0])
+						
 						# if information last position J:
 						elif breakJ == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE not in ["IGL", "TRA", "TRB", "TRD"])):
 							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
-							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
+							cigar1 = [split[x:x+2] for x in range(0, len(split), 2)]
 							# MS cigar
 							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								if w[20] == "Deletion": subcigar1 = cigar1[max([i for i in range(len(cigar1)) if cigar1[i][1] == "M"]):] # limit cigar1 to start at last M
+								else: subcigar1 = cigar1
+								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								J = w[9][-mStart:]
 							# SM cigar
 							else:
-								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+								else: subcigar1 = cigar1
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								J = w[9][:mEnd]
 							
 							# Vseq: remove deleted nucleotides, check insertion at first bases, keep insertions not at first base:
@@ -1554,6 +1743,10 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									readsAlreadyRecovered.append(w[0])
 									break
 								j += 1
+							
+							# add D-seq to nonMatchedDsInJ if not recovered:
+							if w[0] not in readsAlreadyRecovered: 
+								nonMatchedDsInJ.append((w[0], J))
 						
 						# if information first position V:
 						elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE not in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE in ["IGL", "TRA", "TRB", "TRD"])):
@@ -1561,11 +1754,15 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
 							# MS cigar
 							if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								if w[20] == "Deletion": subcigar1 = cigar1[max([i for i in range(len(cigar1)) if cigar1[i][1] == "M"]):] # limit cigar1 to start at last M
+								else: subcigar1 = cigar1
+								mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								V = w[9][-mStart:]
 							# SM cigar
 							else:
-								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+								if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+								else: subcigar1 = cigar1
+								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								V = w[9][:mEnd]
 							
 							# jSeq: remove deleted nucleotides, check insertion at last bases, keep insertions not at last base:
@@ -1595,6 +1792,11 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									readsAlreadyRecovered.append(w[0])
 									break
 								v -= 1
+							
+							# add D-seq to nonMatchedDsInJ if not recovered:
+							if w[0] not in readsAlreadyRecovered: 
+								nonMatchedDsInJ.append((w[0], V))
+
 				ANNOT_TABLE_JV.close()
 			
 			if DseqTemp == []: DseqTemp.append("NotFoundInIter")
@@ -1602,16 +1804,20 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 				i.append(",".join(DseqTemp))
 			else:
 				i[-1] = i[-1]+","+",".join(DseqTemp)
-		
+				i.append(",".join([f"{key};{value}" for key, value in nonMatchedDsInJ]))
+
 		# sort information to account for recovered V reads (geneRound 1) and also J reads (geneRound 2)
 		information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
 	
 	# Report Ds:
+	readsRecoveredNonMatched = []
 	for i in information:
-		DseqTemp = i[-1].split(",") # get DseqTemp from i
+		DseqTemp = i[-2].split(",") # get DseqTemp from i
 		DseqTemp = [dseq for dseq in DseqTemp if dseq != "NotFoundInIter"] # remove NotFoundInIter element if present
-		i.pop() # remove DseqTemp from i
+		nonMatchedDsInJ = i[-1].split(",") # get nonMatchedDsInJ from i
+		del i[-2:] # delete DseqTemp and nonMatchedDsInJ from i
 		AorBdone = "no"
+
 		if len(DseqTemp) > 0:
 			
 			## A) all possible "D"s have different lengths... keep them all...
@@ -1698,15 +1904,53 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 		else:
 			if "IGKKde" in i[0] or "IGKRSS" in i[0]:
 				totseqW = "NA"
-			elif GENE not in ["IGL", "TRA", "TRB", "TRD"]:
-				totseqW = i[10]+i[11]+i[12]
 			else:
-				totseqW = i[12]+i[11]+i[10]
+				# if seq is amplicon, try to recover IGH rearrangement by trying to align 'D' against the germline V sequence before the breakpoint (only IGH due to N-D-N plus SHM)
+				if seq == "amplicon" and GENE == "IGH" and nonMatchedDsInJ != ['']:
+					# get nonMatched nucleotides for reads not used
+					passingNonMatchedDsInJ = []
+					listNonMatchedDsInJ = []
+					for tupp in nonMatchedDsInJ:
+						tuppList = tupp.split(";")
+						if tuppList[0] not in readsAlreadyRecovered:
+							passingNonMatchedDsInJ.append(tuppList[1]) # sequence
+							listNonMatchedDsInJ.append(tupp) # tupp
+					if len(passingNonMatchedDsInJ) > 0:
+						# get most common nonMatched nucleotides
+						DseqNotMatchedMostCommon = Counter(passingNonMatchedDsInJ).most_common(1)[0]
+						# get readNames of these nonMatched nucleotides
+						readNamesDseqNotMatchedMostCommon = []
+						for tupp in listNonMatchedDsInJ:
+							tuppList = tupp.split(";")
+							if tuppList[1] == DseqNotMatchedMostCommon[0]:
+								readNamesDseqNotMatchedMostCommon.append(tuppList[0])
+						# try to get missing nucleotides
+						vStartNucleotidesGermline, vStartNucleotidesTumor, gapFound, nGapFound = fillInGapBetweenDandV(DseqNotMatchedMostCommon[0], readNamesDseqNotMatchedMostCommon, i, bedFile, minimumNumberOfNucleotidesSoft, refGenome, miniBamT, pathToSamtools, errLogMpileup)
+						if gapFound != "NotFound":
+							# assign nonMatched (ie D) in 11; count of reads in 6; and readNames in -2 (split J count)
+							i[11] = DseqNotMatchedMostCommon[0][:-len(vStartNucleotidesTumor)]
+							i[6] = DseqNotMatchedMostCommon[1]
+							i[-2] = ",".join(readNamesDseqNotMatchedMostCommon)
+							# add missing nucleotides to the begining of V (somatic and germline) and adjust breakpoint of V
+							i[12] = vStartNucleotidesTumor+nGapFound+i[12]
+							i[13] = vStartNucleotidesGermline+gapFound+i[13]
+							i[7] = i[7]-len(vStartNucleotidesTumor)-len(nGapFound)
+							# add readNames to readsRecoveredNonMatched
+							readsRecoveredNonMatched.extend(readNamesDseqNotMatchedMostCommon)
+
+				if GENE not in ["IGL", "TRA", "TRB", "TRD"]:
+					totseqW = i[10]+i[11]+i[12]
+				else:
+					totseqW = i[12]+i[11]+i[10]
 			totseqW = re.sub("\(.*?\)", "", totseqW.replace("[", "").replace("]", ""))
 			i.insert(-3, totseqW)
 	
 	information.extend(toAddInInformation) # extend information with duplicated entries with different D (from previous A and B)
-	
+	if seq == "amplicon" and GENE == "IGH":
+		for readRecovered in readsRecoveredNonMatched:
+			if readRecovered not in readsAlreadyRecovered:
+				readsAlreadyRecovered.append(readRecovered)
+
 	# Round 2: recover reads J-D and D-V
 	for i in information:
 
@@ -1735,11 +1979,15 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
 						# MS cigar
 						if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+							if w[20] == "Deletion": subcigar1 = cigar1[max([i for i in range(len(cigar1)) if cigar1[i][1] == "M"]):] # limit cigar1 to start at last M
+							else: subcigar1 = cigar1
+							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 							J = w[9][-mStart:]
 						# SM cigar
 						else:
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+							if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+							else: subcigar1 = cigar1
+							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 							J = w[9][:mEnd]
 						
 						# Vseq: remove deleted nucleotides, check insertion at first bases, keep insertions not at first base:
@@ -1761,10 +2009,10 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						if dvSeq.startswith(J):
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								i[6] += 1 # count split J
-								i[16] = w[0] if i[16] == "" else i[16]+","+w[0]
+								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
 							else: 
 								i[9] += 1 # count split V
-								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
+								i[18] = w[0] if i[18] == "" else i[18]+","+w[0]
 							readsAlreadyRecovered.append(w[0])
 					
 					# if information first position V:
@@ -1773,11 +2021,15 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
 						# MS cigar
 						if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
-							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+							if w[20] == "Deletion": subcigar1 = cigar1[max([i for i in range(len(cigar1)) if cigar1[i][1] == "M"]):] # limit cigar1 to start at last M
+							else: subcigar1 = cigar1
+							mStart = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 							V = w[9][-mStart:]
 						# SM cigar
 						else:
-							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in cigar1 ]) # we add numbers previous to S
+							if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
+							else: subcigar1 = cigar1
+							mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 							V = w[9][:mEnd]
 						
 						# jSeq: remove deleted nucleotides, check insertion at last bases, keep insertions not at last base:
@@ -1798,10 +2050,10 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						if jdSeq.endswith(V):
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								i[9] += 1 # count split V
-								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]
+								i[18] = w[0] if i[18] == "" else i[18]+","+w[0]
 							else: 
 								i[6] += 1 # count split J
-								i[16] = w[0] if i[16] == "" else i[16]+","+w[0]							
+								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]							
 							readsAlreadyRecovered.append(w[0])
 			ANNOT_TABLE_JV.close()
 
@@ -1809,23 +2061,60 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 	information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
 	return(information)
 
-def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements):
-
-	informationClean = []
-
+def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV):
+	
+	informationClean = [] # list to store information that pass filters
+	informationCleanTmp = [] # list to store information that pass filters temporarily
+	informationCleanTmpInsert = [] # list to store information of insert size only rearrangements
+	pairsOfGenes = [] # list to store pairs of genes that pass filters
+	readNamesUsed = [] # list to store readNames used
+	
+	# 1. keep rearrangements with split-reads
 	for i in information:
-		
-		# remove rearrangements if score is 0 or lower than scoreCutoffFilter
+		spl = int(i[2]) + int(i[6]) + int(i[9])
+		if spl > 0:
+			informationCleanTmp.append(i)
+			if i[0] not in pairsOfGenes: pairsOfGenes.append(i[0])
+			if i[-3] != "": readNamesUsed.extend(i[-3].split(","))
+			if i[-2] != "": readNamesUsed.extend(i[-2].split(","))
+			if i[-1] != "": readNamesUsed.extend(i[-1].split(","))
+			
+	# 2. if keepInsertSizeOnlyRearrangements == "yes", recover split-insertSize reads not used during D-seq and keep (split-)insertSize only rearrangements
+	if keepInsertSizeOnlyRearrangements == "yes":
+		# get rearrangements not supported by split reads
+		for i in information:
+			if i[0] not in pairsOfGenes:
+				[i.__setitem__(j, "NA") for j in [4, 5, 7, 8, 10, 11, 12, 13, 14, 15]]
+				informationCleanTmpInsert.append(i)
+				pairsOfGenes.append(i[0])
+		# recover insertSize and split-insertSize reads not used in split-read-supported rearrangements
+		if len(informationCleanTmpInsert) > 0:
+			for i in informationCleanTmpInsert:
+				jGene = i[0].split(" - ")[0]
+				vGene = i[0].split(" - ")[1]
+				jvReadsInsert = []
+				ANNOT_TABLE_JV = open(annot_table_JV, "r")
+				for jvLine in ANNOT_TABLE_JV: 
+					jvList = jvLine.rstrip("\n").split("\t")
+					if jvList[0] in readNamesUsed: continue
+					if (jGene == jvList[18] and vGene == jvList[19]) or (jGene == jvList[19] and vGene == jvList[18]):
+						jvReadsInsert.append(jvList[0])	
+						readNamesUsed.append(jvList[0])		
+				ANNOT_TABLE_JV.close()
+				if len(jvReadsInsert) > 0:
+					i[3] = len(jvReadsInsert)
+					i[-3] = ",".join(jvReadsInsert)
+			# extend to informationCleanTmp
+			informationCleanTmp.extend(informationCleanTmpInsert)
+
+	# 3. remove rearrangements if score is 0 or lower than scoreCutoffFilter
+	for i in informationCleanTmp:
 		spl_ins = round( ( int(i[2])*2 + int(i[3]) + int(i[6])*2 + int(i[9])*2 ) / tumorPurity , 1 )
 		if spl_ins == 0: continue
 		if spl_ins < scoreCutoffFilter: continue
-
-		# remove rearrangements supported only by insertSize reads if keepInsertSizeOnlyRearrangements == "no"
-		spl = int(i[2]) + int(i[6]) + int(i[9])
-		if spl == 0 and keepInsertSizeOnlyRearrangements == "no": continue
-
 		informationClean.append(i)
 	
+	# 4. return
 	return(informationClean)
 
 def collapseSequences(information):	
@@ -2077,7 +2366,10 @@ def checkHomologyAndFunctionality(information, GENE):
 		
 		if len(p[0].split(" - ")) == 2 and (p[0].split(" - ")[0][3] == "D" or p[0].split(" - ")[1][3] == "D"): # partialRearrangement (J-D only)
 			productiu = "Partial rearrangement"
-		
+
+		elif p[4] == "NA":
+			productiu = "Rearrangement without junction coverage"
+
 		elif "Kde" not in p[0] and "RSS" not in p[0]:
 			
 			productiu = "No junction found"
@@ -2271,7 +2563,7 @@ def checkHomologyAndFunctionality(information, GENE):
 		
 	return(information)
 
-def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V):
+def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency):
 
 	if len(information) > 0:
 		platformSystem = "macos" if platform.system() == "Darwin" else "linux"
@@ -2289,7 +2581,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 			countSeq += 1
 		IGBLAST.close()
 
-		# Run IgBlast	
+		# Run IgBlast
 		igblastn = inputsFolder+"/igblast/"+platformSystem+"/ncbi-igblast-1.22.0/bin/igblastn"
 		aux_data = inputsFolder+"/igblast/"+platformSystem+"/ncbi-igblast-1.22.0/optional_file/human_gl.aux"
 
@@ -2340,7 +2632,29 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 					productiu = "Check at IMGT/V-QUEST"
 				
 				# Homology
-				if igblastList[87] != "" and igblastList[78] != "": # FR1-CDR1-FR2-CDR2-FR3
+				fr1fr3_t = "NA"
+				fr1fr3_gl = "NA"
+				if seq == "amplicon":
+					if primerStringency == "strict":
+						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
+						elif primer == "fr1" and igblastList[80] != "": posStart = 80 # cdr1 start
+						elif primer == "cdr1" and igblastList[82] != "": posStart = 82 # fr2 start
+						elif primer == "fr2" and igblastList[84] != "": posStart = 84 # cdr2 start
+						elif primer == "cdr2" and igblastList[86] != "": posStart = 86 # fr3 start
+						else: posStart = "NA" # NA when primer is at fr3 or region to start is empty
+					else: # permissive
+						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
+						elif (primer == "fr1" or (primer in ["leader"] and igblastList[78] == "")) and igblastList[80] != "": posStart = 80 # cdr1 start
+						elif (primer == "cdr1" or (primer in ["leader", "fr1"] and igblastList[80] == "")) and igblastList[82] != "": posStart = 82 # fr2 start
+						elif (primer == "fr2" or (primer in ["leader", "fr1", "cdr1"] and igblastList[82] == "")) and igblastList[84] != "": posStart = 84 # cdr2 start
+						elif (primer == "cdr2" or (primer in ["leader", "fr1", "cdr1", "fr2"] and igblastList[84] == "")) and igblastList[86] != "": posStart = 86 # fr3 start
+						else: posStart = "NA" # NA when primer is at fr3 or previous regions are empty
+					if posStart != "NA":
+						subseq = igblastList[1][(int(igblastList[posStart])-1):int(igblastList[87])]
+						startPosInAlignmentIgBlast = igblastList[14].rfind(subseq)
+						fr1fr3_t = igblastList[14][startPosInAlignmentIgBlast:startPosInAlignmentIgBlast+len(subseq)]
+						fr1fr3_gl = igblastList[15][startPosInAlignmentIgBlast:startPosInAlignmentIgBlast+len(subseq)]
+				elif igblastList[87] != "" and igblastList[78] != "": # FR1-CDR1-FR2-CDR2-FR3
 					fr1fr3_length = int(igblastList[87])-int(igblastList[78])+1
 					fr1fr3_t = igblastList[14][:fr1fr3_length]
 					fr1fr3_gl = igblastList[15][:fr1fr3_length]
@@ -2348,13 +2662,21 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 					fr1fr3_t = igblastList[24] # v_sequence_alignment from igblast
 					fr1fr3_gl = igblastList[26] # v_germline_alignment from igblast
 
-				pctHomology, numHomology = calculateHomology(fr1fr3_t, fr1fr3_gl)
+				if fr1fr3_t != "NA":
+					pctHomology, numHomology = calculateHomology(fr1fr3_t, fr1fr3_gl)
+				else:
+					pctHomology = "NA"
+					numHomology = "NA"
+					if seq == "amplicon" and primerStringency == "strict" and primer != "fr3":
+						productiu = "NA"
+						aaCDR3 = "NA"
+						igBlast_JDV = "NA"
 
 				# Add "potentially" if indel in sequence:
 				if productiu == "Productive (no stop codon and in-frame junction)" and ("-" in fr1fr3_t or "-" in fr1fr3_gl):
 					productiu = "Potentially productive (no stop codon and in-frame junction) [indel detected]"
 				
-				# Add to information		
+				# Add to information
 				p = information[int(igblastList[0].split("_")[1])]
 				p.append(pctHomology)
 				p.append(numHomology)
@@ -2362,11 +2684,14 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				p.append(aaCDR3)
 				p.append(igBlast_JDV)
 			
-			else: # sequence == "NA" (i.e. IGKKde - XX)
+			else: # sequence == "NA" (i.e. IGKKde - XX or Partial rearrangement or only insertSize reads)
 				p = information[int(igblastList[0].split("_")[1])]
 				p.append("NA")
 				p.append("NA")
-				p.append("Partial rearrangement" if len(p[0].split(" - ")) == 2 and (p[0].split(" - ")[0][3] == "D" or p[0].split(" - ")[1][3] == "D") else "NA")
+				if p[4] == "NA": txtToAppend = "Rearrangement without junction coverage"
+				elif len(p[0].split(" - ")) == 2 and (p[0].split(" - ")[0][3] == "D" or p[0].split(" - ")[1][3] == "D"): txtToAppend = "Partial rearrangement"
+				else: txtToAppend = "NA"
+				p.append(txtToAppend)
 				p.append("NA")
 				p.append(p[0])
 	
@@ -2476,7 +2801,7 @@ def annotateR110mutation(information):
 			i[21] = i[21]+" [R110]"
 	return(information)
 
-def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
+def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion):
 
 	trip = {} # dict to save passing rearrangements
 	kdeCount = 2 # max number of Kde-RSS in filtered file
@@ -2505,7 +2830,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 		if spl_ins < scoreCutoff: continue 
 	
 		## Unknown (N) nucleotides in sequence
-		if "Kde" not in line[0] and "RSS" not in line[0] and line[19] != "Partial rearrangement":
+		if "Kde" not in line[0] and "RSS" not in line[0] and line[19] != "Partial rearrangement" and line[19] != "Rearrangement without junction coverage":
 			if seq == "wgs" and sum(1 for i in line[13] if i == "N")/len(line[13]) > 0.5: continue # remove rearrangement if >50% of the V sequence are "N"s for WGS-derived samples
 			if sum(1 for i in line[11] if i == "N")/len(line[11]) > 0.5: continue # remove rearrangement if >50% of the J sequence are "N"s
 		
@@ -2525,8 +2850,12 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 			trip[line[0]] = line[1:] 
 			
 		else:
-			## a) Partial rearrangements (only consider the one with the highest score)
-			if line[19] == "Partial rearrangement":
+			## a) InsertSize only rearrangements:
+			if line[19] == "Rearrangement without junction coverage":
+				trip[line[0]] = line[1:]
+			
+			## b) Partial rearrangements (only consider the one with the highest score)
+			elif line[19] == "Partial rearrangement":
 				if line[0] not in trip:
 					partialJDRearrangement = "yes" if line[0].split(" - ")[1][3] == "D" else "no"
 					if partialJDRearrangement == "yes":
@@ -2546,7 +2875,7 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 				else:
 					continue
 
-			## b) Kde - RSS:
+			## c) Kde - RSS:
 			elif "Kde" in line[0] and "RSS" in line[0]:
 				if line[0] not in trip:
 					trip[line[0]] = line[1:]
@@ -2564,9 +2893,9 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						trip[line[0]+" ("+str(kdeCount)+")"] = line[1:]
 						kdeCount += 1
 				
-			## c) no Partial and no Kde-RSS:
+			## d) no Partial and no Kde-RSS:
 			else:
-				### c1) check if same CDR3 is already annotated...	
+				### d1) check if same CDR3 is already annotated...	
 				if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
 						if trip[keys][18] == "Partial rearrangement": continue
@@ -2611,11 +2940,11 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 								pr = 1
 				
 				else:
-					### c2) check if exactly the same VDJ is already annotated...
+					### d2) check if exactly the same VDJ is already annotated...
 					if line[0] in trip:
 						dict_spl_ins = trip[line[0]][21]
 						dict_mq = float(trip[line[0]][22].split(" ")[0].replace("NA", "0"))
-						dict_cdr3 = trip[line[0]][18]
+						dict_cdr3 = trip[line[0]][19]
 						dict_phasing_pct = 0 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split("/")[0])/float(trip[line[0]][14].split(" ")[0].split("/")[1])*100 if trip[line[0]][14].split(" ")[0].split("/")[1] != "0" else 100
 						dict_muts_low_confidence = 300 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split(" - ")[1])
 
@@ -2647,16 +2976,16 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						else:
 							pr = 1
 					
-					### c3) check if a "not exact VDJ" is already annotated...
+					### d3) check if a "not exact VDJ" is already annotated...
 					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
 						if trip[keys][18] == "Partial rearrangement": continue
 						ts = keys.split(" - ") # annotated values
 						nw = line[0].split(" - ") # new value
 						common = set(ts).intersection(nw) # intersection between values in dict and value analysed
 						ts2 = trip[keys][20].split(" - ") # annotated values based on IgBlast
-						ts2 = [g.split("*")[0] for g in ts2] # remove allelese and keep first gene 
+						ts2 = [g.split("*")[0] for g in ts2] # remove alleles and keep first gene 
 						nw2 = line[21].split(" - ") # annotated values based on IgBlast
-						nw2 = [g.split("*")[0] for g in nw2] # remove allelese and keep first gene 
+						nw2 = [g.split("*")[0] for g in nw2] # remove alleles and keep first gene 
 						common2 = set(ts2).intersection(nw2) # intersection between values in dict and value analysed
 						dict_spl_ins = trip[keys][21]
 						dict_spl_ins_phased = len(trip[keys][23].split(","))
@@ -2665,7 +2994,6 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						dict_cdr3 = trip[keys][19]
 						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
 						dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
-
 						#### Specific conditions after manual review of multiple analyses (especially for capture, high coverage data):
 						##### A: 2 genes in common based on breaks + CDR3 inside
 						##### B: 2 genes in common + highly similary CDR3s
@@ -2686,25 +3014,25 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 						condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (spl_ins*5 < dict_spl_ins or dict_spl_ins*5 < spl_ins)
 						condiI = (len(common) == 2 or len(common2) >= 2) and ( (dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins) or (spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins) )
 						if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI:
-							if len(ts) > len(nw): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
-								pr = 1
-							elif len(ts) < len(nw): # if the other way around... keep the new one
-								del trip[keys]
-							elif line[19] != "NA" and dict_cdr3 == "NA": # keep the one with info in CDR3 aa seq
-								del trip[keys]
-							elif line[19] == "NA" and dict_cdr3 != "NA":
-								pr = 1
-							elif dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins: # check if one has more reads (including phased reads) and more initially mapped split/insert reads
+							if dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins: # check if one has more reads (including phased reads) and more initially mapped split/insert reads
 								del trip[keys]
 							elif spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins:
 								pr = 1
+							elif line[20] != "NA" and dict_cdr3 == "NA": # keep the one with info in CDR3 aa seq
+								del trip[keys]
+							elif line[20] == "NA" and dict_cdr3 != "NA":
+								pr = 1
+							elif len(ts) > len(nw) and len(ts2) > len(nw2): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
+								pr = 1
+							elif len(ts) < len(nw) and len(ts2) < len(nw2): # if the other way around... keep the new one
+								del trip[keys]
 							elif line[5] != trip[keys][4] and line[7] != trip[keys][6]: # if different breakpoints, keep both if similar score
 								if spl_ins*0.5 > dict_spl_ins: 
 									del trip[keys]
 								elif spl_ins*1.5 < dict_spl_ins:
 									pr = 1
 								else:
-									pr = 0							
+									pr = 0
 							elif spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25: # if similar scores
 								if phasing_pct > dict_phasing_pct: # based on phasing
 									del trip[keys]
@@ -2739,13 +3067,24 @@ def predefinedFilter(information, seq, seqDepth, scoreCutoff, genomeVersion):
 								elif spl_ins < dict_spl_ins:
 									pr = 1
 				
-				### c4) add if needed
+				### d4) add if needed
 				if pr == 0:
 					trip[line[0]] = line[1:]
 	
-	return(trip)
+	## Report Only productive
+	if reportOnlyProductive == "no":
+		return(trip)
+	else:
+		prodTrip = {}
+		for ky in trip:
+			line = trip[ky]
+			if "Productive" in line[18] or "Potentially productive" in line[18] or line[18] == "Rearrangement without junction coverage":
+				prodTrip[ky] = line
+			elif reportOnlyProductive == "oof" and line[18] == "Unproductive (stop codons)":
+				prodTrip[ky] = line
+		return(prodTrip)
 	
-def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR):
+def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR, errLogMpileup):
 	class_switch = []
 	class_switch_filt = []
 	reductionMeans  = []
@@ -2800,7 +3139,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 					en = endB
 				
 				mpileupFile = wkDir+"/tmp/"+bamT.split("/")[-1].replace(".bam", "_output_mpileup.tsv")
-				subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+" -r "+chromGene+":"+str(st)+"-"+str(en)+" "+bamT+ " > "+mpileupFile, shell=True)					
+				subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+" -r "+chromGene+":"+str(st)+"-"+str(en)+" "+bamT+ " > "+mpileupFile+" 2>> "+errLogMpileup, shell=True)					
 				
 				pos = st
 				lst = []
@@ -2839,7 +3178,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 						en = endB
 					
 					mpileupFile = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", "_output_mpileup.tsv")
-					subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+" -r "+chromGene+":"+str(st)+"-"+str(en)+" "+bamN+ " > "+mpileupFile, shell=True)					
+					subprocess.call(pathToSamtools+"samtools mpileup -d 0 -B -Q "+baseq+" -r "+chromGene+":"+str(st)+"-"+str(en)+" "+bamN+ " > "+mpileupFile+" 2>> "+errLogMpileup, shell=True)					
 					
 					pos = st
 					idx = 0
@@ -2893,7 +3232,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 	
 	return(class_switch, class_switch_filt, reductionMeans)
 
-def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames):
+def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup):
 	
 	if genomeVersion == "hg19":
 		chrom14_IGH = [106052774, 107288051] # IGH region 
@@ -3431,7 +3770,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			else: region = chrB+":"+str(int(positionB))+"-"+str(int(positionB)+19)
 
 		# depth
-		comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapqOnco+" -r "+region+" "+bamT+" | cut -f 4"
+		comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapqOnco+" -r "+region+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 		process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		stdout, stderr = process.communicate()
 		depth = int(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/20, 0))
@@ -3447,7 +3786,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		subprocess.call(comms, shell=True)
 		comms = pathToSamtools+"samtools index "+readBam
 		subprocess.call(comms, shell=True)
-		comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapqOnco+" -r "+region+" "+readBam+" | cut -f 4"
+		comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapqOnco+" -r "+region+" "+readBam+" 2>> "+errLogMpileup+" | cut -f 4"
 		process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 		stdout, stderr = process.communicate()
 		altDepth = int(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/20, 0))
@@ -3497,7 +3836,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		
 	return(translocationsALL, translocationsPASS)
 
-def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, reportReadNames):
+def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, reportReadNames, errLogMpileup):
 	
 	if genomeVersion == "hg19":	
 		bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_JgenesForPurity.bed"
@@ -3604,19 +3943,19 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 
 				else:
 					# Get mean depths tumor bam
-					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamT+" | cut -f 4"
+					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowNormal, 0))
 					if ( seqDepth == "high" and depthNormal <= 50 ) or ( seqDepth == "int" and depthNormal <= 15 ) or ( seqDepth == "low" and depthNormal <= 7 ): flagCov = "LowCoverage"
 					else: flagCov = "PASS"
 
-					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedBreak+" "+bamT+" | cut -f 4"
+					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedBreak+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthDeletedBreak = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
 					
-					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedGene+" "+bamT+" | cut -f 4"
+					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedGene+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthDeletedGene = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedGene, 0))
@@ -3625,17 +3964,17 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					factorDeletedBreak = 1
 					factorDeletedGene = 1
 					if bamN is not None:
-						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamN+" | cut -f 4"
+						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamN+" 2>> "+errLogMpileup+" | cut -f 4"
 						process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 						stdout, stderr = process.communicate()
 						depthNormalNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowNormal, 0))
 						
-						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedBreak+" "+bamN+" | cut -f 4"
+						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedBreak+" "+bamN+" 2>> "+errLogMpileup+" | cut -f 4"
 						process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 						stdout, stderr = process.communicate()
 						depthDeletedBreakNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
 						
-						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedGene+" "+bamN+" | cut -f 4"
+						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeletedGene+" "+bamN+" 2>> "+errLogMpileup+" | cut -f 4"
 						process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 						stdout, stderr = process.communicate()
 						depthDeletedGeneNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedGene, 0))
@@ -3785,7 +4124,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					regionDeleted = chrom+"2:"+str(IGKRSSPos - 15 - windowDeletedBreak)+"-"+str(IGKRSSPos - 15 - 1)
 
 				# Get mean depths tumor windowDeletedBreak
-				comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamT+" | cut -f 4"
+				comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 				process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 				stdout, stderr = process.communicate()
 				depthNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
@@ -3796,7 +4135,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				
 				else:
 					flagCov = "PASS"
-					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamT+" | cut -f 4"
+					comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
 					process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 					stdout, stderr = process.communicate()
 					depthDeleted = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
@@ -3804,12 +4143,12 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					# Get mean depths normal bam
 					factorDeleted = 1
 					if bamN is not None:
-						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamN+" | cut -f 4"
+						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamN+" 2>> "+errLogMpileup+" | cut -f 4"
 						process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 						stdout, stderr = process.communicate()
 						depthNormalNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
 
-						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamN+" | cut -f 4"
+						comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionDeleted+" "+bamN+" 2>> "+errLogMpileup+" | cut -f 4"
 						process = subprocess.Popen(comms, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 						stdout, stderr = process.communicate()
 						depthDeletedNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedBreak, 0))
