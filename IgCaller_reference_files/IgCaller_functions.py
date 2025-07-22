@@ -1656,6 +1656,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									split2readList = split2read.rstrip("\n").split("\t")
 									split = re.findall(r'[A-Za-z]|[0-9]+', split2readList[5])
 									cigar1 = [split[x:x+2] for x in range(0, len(split), 2)]
+									if not any("M" in cigEl for cigEl in cigar1) or not any("S" in cigEl for cigEl in cigar1): continue
 									# MS cigar
 									if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
 										mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) - 1
@@ -1670,33 +1671,35 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									elif int(w[13]) == int(split2readList[3])+mStart:
 										vUnmap = split2readList[9][:mEnd]
 								SPLIT2READS.close()
-
+								
 								# align soft clipped to get entire sequence
 								if jUnmap != "" and vUnmap != "":
-									unmapAlignment = pairwise2.align.localms(jUnmap, vUnmap, 2, -1, -1000, -1000)[0]
-									# force stitching condiA (a: xxxxx, b: xxxxx) or condiB (a: nnnxx--, b:---xxnnn)
-									condiA = not unmapAlignment.seqA.startswith("-") and not unmapAlignment.seqA.endswith("-") and not unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
-									condiB = not unmapAlignment.seqA.startswith("-") and unmapAlignment.seqA.endswith("-") and unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
-									if condiA or condiB:
-										numMatches = sum(1 for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB) if a == b and a != "-" and b != "-")
-										lenAlignment = unmapAlignment.end - unmapAlignment.start
-										ratioMatchesMissmatches = numMatches/lenAlignment
-										# force minimum length and matches in alignment
-										if lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8:
-											unmapNucs = []
-											for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB):
-												if a != "-" and b == "-":
-													unmapNucs.append(a)
-												elif a == "-" and b != "-":
-													unmapNucs.append(b)
-												elif a != "-" and b != "-" and a == b:
-													unmapNucs.append(a)
-												else:
-													unmapNucs.append("N")
-											unmapSeq = "".join(unmapNucs)
-											# append to DseqTemp
-											DseqTemp.append(unmapSeq)
-											readsAlreadyRecovered.append(w[0])
+									unmapAlignment = pairwise2.align.localms(jUnmap, vUnmap, 2, -1, -1000, -1000)
+									if len(unmapAlignment) > 0:
+										unmapAlignment = unmapAlignment[0]
+										# force stitching condiA (a: xxxxx, b: xxxxx) or condiB (a: nnnxx--, b:---xxnnn)
+										condiA = not unmapAlignment.seqA.startswith("-") and not unmapAlignment.seqA.endswith("-") and not unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
+										condiB = not unmapAlignment.seqA.startswith("-") and unmapAlignment.seqA.endswith("-") and unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
+										if condiA or condiB:
+											numMatches = sum(1 for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB) if a == b and a != "-" and b != "-")
+											lenAlignment = unmapAlignment.end - unmapAlignment.start
+											ratioMatchesMissmatches = numMatches/lenAlignment
+											# force minimum length and matches in alignment
+											if lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8:
+												unmapNucs = []
+												for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB):
+													if a != "-" and b == "-":
+														unmapNucs.append(a)
+													elif a == "-" and b != "-":
+														unmapNucs.append(b)
+													elif a != "-" and b != "-" and a == b:
+														unmapNucs.append(a)
+													else:
+														unmapNucs.append("N")
+												unmapSeq = "".join(unmapNucs)
+												# append to DseqTemp
+												DseqTemp.append(unmapSeq)
+												readsAlreadyRecovered.append(w[0])
 						
 						# if information last position J:
 						elif breakJ == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE not in ["IGL", "TRA", "TRB", "TRD"])):
