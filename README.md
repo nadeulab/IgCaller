@@ -52,7 +52,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * sequencing (-seq): Sequencing technique [whole-genome sequencing (wgs), whole-exome sequencing (wes), high-coverage capture NGS (capture), or amplicon-based NGS (amplicon)].
 * sequencingDepth (-seqDepth): Sequencing depth [low (~30x), int (50-200x), high (>250x)].
 *	bamN (-N): Path to normal BAM file, if available.
-*	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used to calculate tumor purity estimates based on coverage.
+*	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used during the estimation of tumor purity based on coverage.
 *	refGenome (-R): Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.
 
 #### Optional arguments:
@@ -60,8 +60,9 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	geneToAnalyze (-g): Gene/receptor to be analyzed [ig/tcr/both, default=ig].
 
 ###### Amplicon-based sequencing:
-*	primer (-pr): Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3, default=None]. It is used to calculate the percentage of identity starting with the sequence after the primer location. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended). Required if '-seq amplicon'. See parameter '--primerStringency' for further tunning.
-*	primerStringency (-prs): Primer stringency [strict/permissive, default=strict]: strict = only annotate sequences with nucleotides found after the theoric location of the primer. permissive = annotate sequences even if they start later than the theoric location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).
+*	primer (-pr): Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3/Vseq, default=None]. It is used to cut the sequence after the primer location (if leader, fr1, cdr1, fr2, cdr2, fr3) or sequence (if Vseq) prior annotation and identity calculation. Only applicable when IgBLAST is used for the annotation using the '-a' argument. Required if '-seq amplicon'. See parameter '--primerStringency' and 'primerFasta' for further tunning.
+* primerFasta (-prf): Fasta file with primer sequences annealing to V genes that need to be removed from the sequence. Mandatory when '-pr/--primer' is 'Vseq'. Sequence name (or header line) in fasta file must start with '>locus', where locus is IGH, IGK, IGL, TRA, TRAB, TRAG, or TRAD to allow locus-specific mapping and elimination of primers. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).
+*	primerStringency (-prs): Primer stringency [strict/permissive, default=strict]. Mandatory when '-pr/--primer' is 'leader', 'fr1', 'cdr1', 'fr2', 'cdr2', or 'fr3'. 'strict' = only annotate sequences with nucleotides found after the expected location of the primer. 'permissive' = annotate sequences even if they start later than the expected location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).
 
 ###### Purity of the tumor sample:
 *	tumorPurity (-p): Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, use 1.
@@ -81,9 +82,11 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 
 ###### IG/TCR reconstruction:
 * highSensitivity (-hs): highSensitivity = no: runs faster by skipping low-confidence rearrangements. highSensitivity = yes: may run significantly slower in some samples since it tries to recover low-confidence rearrangements [no/yes, default = yes].
-* keepInsertSizeOnlyRearrangements (-kisor): Specify if IG/TCR rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept [no/yes, default = no]. If kept, they are labeled with the tag 'Rearrangement without junction coverage' and the nucleotide sequences, functionality, identity to germline, and other features are not computed. If specified, these rearrangements are reported in the filtered output independently of the value specified in the '-rop' argument.
-* phaseReadsBasedOnMutations (-prbm): Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score and mapping quality [no/yes, default = yes].
 * minimumNumberOfNucleotidesSoft (-mnns): Minimum number of soft-clipped nucleotides to consider a read as split-read and number of nucleotides to be aligned on a J-V, J-D or D-V break in order to recover the read as a split-read covering the rearrangement [integer number higher than 0, default = 5].
+* phaseReadsBasedOnMutations (-prbm): Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score and mapping quality [no/yes, default = yes].
+* keepInsertSizeOnlyRearrangements (-kisor): Specify if IG/TCR rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept [no/yes, default = no]. If kept, they are labeled with the tag 'Rearrangement without junction coverage' and the nucleotide sequences, functionality, identity to germline, and other features are not computed. If specified, these rearrangements are reported in the filtered output independently of the value specified in the '-rop' argument.
+* collapseSequences (-cs): Collapse IG/TCR sequences if they are similar at nucleotide level. If so, the sequence of the rearrangement supported with the highest score is kept, but number of reads and read names are merged in the output [no/yes, default = yes].
+* collapseSequencesSimilarity (-css): Cutoff of similarity between two IG/TCR sequences in order to be collapsed [0-1, default=0.98].
 * shortReportedVseq (-shortV): Make V sequence start at (approx) FR1 [yes/no, default=yes].
 *	mappingQuality (-mq): Mapping quality cut off to filter out reads for IG/TCR V(D)J reconstruction [default=0].
 *	baseQuality (-bq): Base quality cut off for samtools mpileup for mutation analysis [default=13].
@@ -91,10 +94,10 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	minAltDepth (-ad): Alt depth cut off to consider a nucleotide [0-inf, default='empty'; will consider 1 for seqDepth = low/int and 2 for high].
 *	vafCutoff (-vaf): VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by a comma, default=0.66,0.1].
 *	vafCutoffNormal (-vafN): VAF cut off to consider a variant in the normal sample [0-1, default=0.20].
-*	reportOnlyProductive (-rop): Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements. The 'oof' option has been mainly added since amplicon-based data, especially if low depth, may have some artefactual variants in the sequence leading to stop codons.
 * scoreCutoff (-s): Minimum score supporting a gene rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].
 * scoreCutoffFilter (-sf): Minimum score supporting a gene rearrangement in order to be kept during the analysis [default='empty'; will consider 2 for seqDepth = low, 4 for int, and 6 for high].
 * scoreCutoffCSR (-scsr): Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].
+*	reportOnlyProductive (-rop): Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements.
 
 ###### Oncogenic rearrangements (i.e., translocations, etc.):
 *	runOncogenicRearrangements (-ror): Run the analysis of oncogenic IG/TCR rearrangements [yes/no, default=yes].
@@ -114,6 +117,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * estimatePurity (-ep): Estimate purity [no/yes, default=yes]. If specified, the purity is estimated based on the IG/TCR rearrangements and reported in the output. It does not effect the scores and internal cutoffs.
 * estimatePurityCoverage (-epc): Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.
 * scoreCutoffPurity (-scp): Minimum score supporting a rearrangement in order to be considered during purity calculation [default='empty'; same as 'scoreCutoff'].
+* plotPurityCoverage (-ppc): Plot coverage along J genes to visually evaluate coverage estimations [no/yes, default='yes'].
 
 ###### Samtools-related arguments:
 *	pathToSamtools (-ptsam): Path to the directory where samtools is installed. No need to specify it if samtools is found in 'PATH' [default = 'empty', assuming it is in 'PATH'].
@@ -121,7 +125,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 
 
 #### Running time:
-IgCaller only requires 1 CPU, and it usually takes around 5 minutes to characterize the complete IG/TCR of one tumor sample. Execution time increases with sequencing coverage and number of potential rearrangements present in the sample.
+IgCaller only requires 1 CPU, and it usually takes around 5-10 minutes to characterize the complete IG/TCR of one tumor sample, including the analysis of oncogenic rearrangements and purity estimations. Execution time increases with sequencing coverage and number of potential rearrangements present in the sample.
 
 #### Tested on:
 IgCaller was tested on a MacBook Pro (macOS Mojave, Big Sur, Ventura), Ubuntu (16.04, 18.04, 22.04), and MareNostrum 4 (Barcelona Supercomputing Center, SUSE Linux Enterpirse Server 12 SP2 with python/3.6.1).
@@ -144,7 +148,8 @@ IgCaller returns a set of tab-separated files:
 *	tumor_sample_output_TRD.tsv: File containing all TRD rearrangements [for TCR analyses].
 *	tumor_sample_output_oncogenic_rearrangements.tsv: File containing all oncogenic IG/TCR rearrangements (translocations, deletions, inversions, and gains) identified genome-wide.
 *	tumor_sample_output_purity.tsv: File containing the estimated purity of each gene considered during purity calculation.
-
+* tumor_sample_output_purity_RawTumorCoverage.pdf: File containing the plots of the raw tumor coverage along the genes used to estimate the purity.
+* tumor_sample_output_purity_NormalizedTumorCoverage.pdf: File containing the plots of the normalized tumor coverage along the genes used to estimate the purity. Coverage is normalized by mean coverage of the tumor sample in the region considered and by the coverage of the normal sample (i.e., baseline coverage distribution), if available. 
 
 ### Other notes
 
@@ -163,18 +168,18 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
 ### Releases
 * v2.0:
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
-  * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of rearrangements). See arguments -seq, -pr, and -prs for further details.
-  * Added the reconstruction of partial (J-D only) rearrangements.
-  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see -pm, -ep, -epc, and -scp).
   * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see -a and -aa). We recommend using IgBLAST (default), especially when the normal (i.e., germline) BAM file is not available.
+  * Added the reconstruction of partial (J-D or D-V only) rearrangements.
+  * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of IG/TCR rearrangements). See arguments -seq, -pr, -prf, and -prs for further details.
+  * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, -scp, -ppc, and -pm, as well as the new output files *output_purity*).
   * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110)
-  * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details.
-  * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf and -mnns).
-  * Improved phasing of reads along the V gene and new optional argument (see -prbm).
-  * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
-  * Added some optional arguments to provide more flexibility (see -rop, -kisor, -ror, and -roor)
+  * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
+  * Improved phasing of reads along the V gene (see -prbm).
+  * Added some optional arguments to provide more flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
+  * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
-  * Other minor improvements and edits.
+  * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
+  * Other minor improvements and edits (virtually) all along the code.
 * v1.4-beta (not stored as a formal release):
   * Dockerfile and shebang included following [pull #6](https://github.com/ferrannadeu/IgCaller/pull/6).
   * Small edit to correct a warning message when trying to remove non-created temporary files in some situations.
