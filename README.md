@@ -9,7 +9,7 @@ IgCaller is a python program designed to fully characterize the immunoglobulin (
 
 ### Requirements
 
-* IgCaller is based on python3 and requires the following modules: statistics, regex (v2.5.29 and v2.5.30), argparse (v1.1), numpy (1.16.2, v1.16.3, and 1.21.6), scipy (v1.2.1, v1.3.0 and 1.7.3), and biopython (v1.81). Although providing the versions of the modules tested, we are not aware about any specific version requirement for running IgCaller. Other modules used by IgCaller but already included in base python are: subprocess, sys, os, itertools, operator, collections, gzip, pickle, difflib.
+* IgCaller is based on python3 and requires the following modules: statistics, regex (v2.5.29 and v2.5.30), argparse (v1.1), numpy (1.16.2, v1.16.3, and 1.21.6), scipy (v1.2.1, v1.3.0 and 1.7.3), biopython (v1.81), pandas (v1.0.3), and seaborn (v0.11.2). Although providing the versions of the modules tested, we are not aware about any specific version requirement for running IgCaller. Other modules used by IgCaller but already included in base python are: subprocess, sys, os, itertools, operator, collections, gzip, pickle, difflib, matplotlib.
 * The only required non-python program is [samtools](http://www.htslib.org) (v1.16.1 and v1.22 have been tested).
 * IgCaller has only been validated with BAM files obtained using [BWA-MEM](http://bio-bwa.sourceforge.net/) (v0.7.15 and v0.7.17 have been tested).
 
