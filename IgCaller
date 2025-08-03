@@ -73,8 +73,8 @@ parser.add_argument('-pm', '--pairedMode',
 					dest = "pairedMode",
 					action = "store",
 					default = None,
-					choices = ["paired", "unpaired"],
-					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used to calculate tumor purity estimates based on coverage.") 
+					choices = ['paired', 'unpaired'],
+					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used during the estimation of tumor purity based on coverage.") 
 
 parser.add_argument('-R', '--refGenome',
 					dest = "refGenome",
@@ -95,15 +95,21 @@ parser.add_argument('-pr', '--primer',
 					dest = "primer",
 					action = "store",
 					default = None,
-					choices = ['leader', 'fr1', 'cdr1', 'fr2', 'cdr2', 'fr3'],
-					help = "Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3, default=None]. It is used to calculate the percentage of identity starting with the sequence after the primer location. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended). Required if '-seq amplicon'. See parameter '--primerStringency' for further tunning.") 
+					choices = ['leader', 'fr1', 'cdr1', 'fr2', 'cdr2', 'fr3', 'Vseq'],
+					help = "Location of the primer in the V gene for amplicon-based data [leader/fr1/cdr1/fr2/cdr2/fr3/Vseq, default=None]. It is used to cut the sequence after the primer location (if leader, fr1, cdr1, fr2, cdr2, fr3) or sequence (if Vseq) prior annotation and identity calculation. Only applicable when IgBLAST is used for the annotation using the '-a' argument. Required if '-seq amplicon'. See parameter '--primerStringency' and 'primerFasta' for further tunning.")
+
+parser.add_argument('-prf', '--primerFasta',
+					dest = "primerFasta",
+					action = "store",
+					default = "",
+					help = "Fasta file with primer sequences annealing to V genes that need to be removed from the sequence. Mandatory when '-pr/--primer' is 'Vseq'. Sequence name (or header line) in fasta file must start with '>locus', where locus is IGH, IGK, IGL, TRA, TRAB, TRAG, or TRAD to allow locus-specific mapping and elimination of primers. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).")
 
 parser.add_argument('-prs', '--primerStringency',
 					dest = "primerStringency",
 					action = "store",
 					default = "strict",
 					choices = ['strict', 'permissive'],
-					help = "Primer stringency [strict/permissive, default=strict]: strict = only annotate sequences with nucleotides found after the theoric location of the primer. permissive = annotate sequences even if they start later than the theoric location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).")
+					help = "Primer stringency [strict/permissive, default=strict]. Mandatory when '-pr/--primer' is 'leader', 'fr1', 'cdr1', 'fr2', 'cdr2', or 'fr3'. 'strict' = only annotate sequences with nucleotides found after the expected location of the primer. 'permissive' = annotate sequences even if they start later than the expected location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).")
 
 # Purity of the tumor sample:
 parser.add_argument('-p', '--tumorPurity', 
@@ -130,7 +136,7 @@ parser.add_argument('-rrn', '--reportReadNames',
 					dest = "reportReadNames",
 					action = "store",
 					default = "no",
-					choices = ["no", "yes"],
+					choices = ['no', 'yes'],
 					help = "Report read names associated with each rearrangement found [no/yes, default=no].")
 
 # Annotation tool and database:
@@ -171,12 +177,12 @@ parser.add_argument('-hs', '--highSensitivity',
 					choices = ['no', 'yes'],
 					help = "highSensitivity = no: runs faster by skipping low-confidence rearrangements. highSensitivity = yes: may run significantly slower in some samples since it tries to recover low-confidence rearrangements [no/yes, default = yes].")
 
-parser.add_argument('-kisor', '--keepInsertSizeOnlyRearrangements', 
-					dest = "keepInsertSizeOnlyRearrangements",
+parser.add_argument('-mnns', '--minimumNumberOfNucleotidesSoft',
+					dest = "minimumNumberOfNucleotidesSoft",
 					action = "store",
-					default = "no",
-					choices = ['no', 'yes'],
-					help = "Specify if IG/TCR rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept [no/yes, default = no]. If kept, they are labeled with the tag 'Rearrangement without junction coverage' and the nucleotide sequences, functionality, identity to germline, and other features are not computed. If specified, these rearrangements are reported in the filtered output independently of the value specified in the '-rop' argument.")
+					default = "5",
+					type = int,
+					help = "Minimum number of soft-clipped nucleotides to consider a read as split-read and number of nucleotides to be aligned on a J-V, J-D or D-V break in order to recover the read as a split-read covering the rearrangement [integer number higher than 0, default = 5].")
 
 parser.add_argument('-prbm', '--phaseReadsBasedOnMutations', 
 					dest = "phaseReadsBasedOnMutations",
@@ -185,12 +191,26 @@ parser.add_argument('-prbm', '--phaseReadsBasedOnMutations',
 					choices = ['no', 'yes'],
 					help = "Phase reads based on mutations identified in the V gene. They will be used to reconstruct the sequence on the V gene but not considered to calculate the score and mapping quality [no/yes, default = yes].")
 
-parser.add_argument('-mnns', '--minimumNumberOfNucleotidesSoft', 
-					dest = "minimumNumberOfNucleotidesSoft",
+parser.add_argument('-kisor', '--keepInsertSizeOnlyRearrangements', 
+					dest = "keepInsertSizeOnlyRearrangements",
 					action = "store",
-					default = "5",
-					type = int,
-					help = "Minimum number of soft-cliped nucleotides to consider a read as split-read and needed to be align on a J/V break in order to recover the read as split [integer number higher than 0, default = 5].")
+					default = "no",
+					choices = ['no', 'yes'],
+					help = "Specify if IG/TCR rearrangements supported only by insert-size reads (i.e., no split-reads) should be kept [no/yes, default = no]. If kept, they are labeled with the tag 'Rearrangement without junction coverage' and the nucleotide sequences, functionality, identity to germline, and other features are not computed. If specified, these rearrangements are reported in the filtered output independently of the value specified in the '-rop' argument.")
+
+parser.add_argument('-cs', '--collapseSequences', 
+					dest = "collapseSequences",
+					action = "store",
+					default = "yes",
+					choices = ['no', 'yes'],
+					help = "Collapse IG/TCR sequences if they are similar at nucleotide level. If so, the sequence of the rearrangement supported with the highest score is kept, but number of reads and read names are merged in the output [no/yes, default = yes].")
+
+parser.add_argument('-css', '--collapseSequencesSimilarity', 
+					dest = "collapseSequencesSimilarity",
+					action = "store",
+					default = "0.98",
+					type = float,
+					help = "Cutoff of similarity between two IG/TCR sequences in order to be collapsed [0-1, default=0.98].")
 
 parser.add_argument('-shortV', '--shortReportedVseq',
 					dest = "shortV",
@@ -240,13 +260,6 @@ parser.add_argument('-vafN', '--vafCutoffNormal',
 					type = float,
 					help = "VAF cut off to consider a variant in the normal sample [0-1, default=0.20].")
 
-parser.add_argument('-rop', '--reportOnlyProductive',
-					dest = "reportOnlyProductive",
-					action = "store",
-					default = "no",
-					choices = ["no", "oof", "yes"],
-					help = "Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements. The 'oof' option has been mainly added since amplicon-based data, especially if low depth, may have some artefactual variants in the sequence leading to stop codons.")
-
 parser.add_argument('-s', '--scoreCutoff',
 					dest = "scoreCutoff",
 					action = "store",
@@ -267,6 +280,13 @@ parser.add_argument('-scsr', '--scoreCutoffCSR',
 					default = "",
 					type = check_empty_or_integer,
 					help = "Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
+
+parser.add_argument('-rop', '--reportOnlyProductive',
+					dest = "reportOnlyProductive",
+					action = "store",
+					default = "no",
+					choices = ['no', 'oof', 'yes'],
+					help = "Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements.")
 
 # Oncogenic rearrangements (i.e., translocations, etc.):
 parser.add_argument('-ror', '--runOncogenicRearrangements',
@@ -329,7 +349,7 @@ parser.add_argument('-gOnco', '--genesOncoIg',
 					dest = "genesOncoIg",
 					action = "store",
 					default = "protein_coding_canonical",
-					choices = ["all", "protein_coding", "protein_coding_canonical"],
+					choices = ['all', 'protein_coding', 'protein_coding_canonical'],
 					help = "Genes to be annotated based on proximity to the oncogenic IG/TCR rearrangement breakpoints. All genes, only protein coding genes, or only canonical portein coding transcripts. For hg19 reference, protein_coding_canonical is not supported and it is treated as protein_coding. [all/protein_coding/protein_coding_canonical, default=protein_coding_canonical].")
 
 parser.add_argument('-cgOnco', '--customGenesOncoIg', 
@@ -364,7 +384,7 @@ parser.add_argument('-epc', '--estimatePurityCoverage',
 					dest = "estimatePurityCoverage",
 					action = "store",
 					default = "no",
-					choices = ['no', 'yes', "igh"],
+					choices = ['no', 'yes', 'igh'],
 					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.") 
 
 parser.add_argument('-scp', '--scoreCutoffPurity',
@@ -373,6 +393,13 @@ parser.add_argument('-scp', '--scoreCutoffPurity',
 					default = "",
 					type = check_empty_or_integer,
 					help = "Minimum score supporting a rearrangement in order to be considered during purity calculation [default='empty'; same as 'scoreCutoff'].")
+
+parser.add_argument('-ppc', '--plotPurityCoverage',
+					dest = "plotPurityCoverage",
+					action = "store",
+					default = "yes",
+					choices = ['no', 'yes'],
+					help = "Plot coverage along J genes to visually evaluate coverage estimations [no/yes, default='yes'].")
 
 # Samtools-related arguments:
 parser.add_argument('-ptsam', '--pathToSamtools',
@@ -403,41 +430,40 @@ genomeVersion = options.genomeVersion
 chrAnnot = options.chrAnnot
 originalBamT = options.bamT
 seq = options.seq
-primer = options.primer
-primerStringency = options.primerStringency
 seqDepth = options.seqDepth
 originalBamN = options.bamN
 pairedMode = options.pairedMode
 refGenome = options.refGenome
 geneToAnalyze = options.geneToAnalyze
+primer = options.primer
+primerFasta = options.primerFasta
+primerStringency = options.primerStringency
 tumorPurity = options.tumorPurity
 outputPath = options.outputPath
 keepMiniIgBams = options.keepMiniIgBams
 reportReadNames = options.reportReadNames
-highSensitivity = options.highSensitivity
-keepInsertSizeOnlyRearrangements = options.keepInsertSizeOnlyRearrangements
-phaseReadsBasedOnMutations = options.phaseReadsBasedOnMutations
-minimumNumberOfNucleotidesSoft = options.minimumNumberOfNucleotidesSoft
-if minimumNumberOfNucleotidesSoft <= 0: sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -mnns / --minimumNumberOfNucleotidesSoft should be an integer higher than 0.")
 annotateSeq = options.annotateSeq
 annotateSeqDB = options.annotateSeqDB
 subsetsAnnotation = options.subsetsAnnotation
 R110annotation = options.R110annotation
-estimatePurity = options.estimatePurity
-estimatePurityCoverage = options.estimatePurityCoverage
+highSensitivity = options.highSensitivity
+minimumNumberOfNucleotidesSoft = options.minimumNumberOfNucleotidesSoft
+phaseReadsBasedOnMutations = options.phaseReadsBasedOnMutations
+keepInsertSizeOnlyRearrangements = options.keepInsertSizeOnlyRearrangements
+collapseSequences = options.collapseSequences
+collapseSequencesSimilarity = float(options.collapseSequencesSimilarity)
 shortV = options.shortV
 mapq = str(options.mapq)
 baseq = str(options.baseq)
 depth = options.depth
 altDepth = int(options.altDepth) if options.altDepth != "" else 2 if seqDepth == "high" else 1
 vafCutoff = options.vafCutoff.rstrip(",").split(",")
-if len(vafCutoff) != 2: sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -vaf / --vafCutoff should be of the form '0.66,0.1'.")
 vafCutoffNormal = options.vafCutoffNormal
-reportOnlyProductive = options.reportOnlyProductive
 scoreCutoff = int(options.scoreCutoff) if options.scoreCutoff != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
 scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter != "" else 6 if seqDepth == "high" else 4 if seqDepth == "int" else 2
 scoreCutoffPurity = int(options.scoreCutoffPurity) if options.scoreCutoffPurity != "" else scoreCutoff
 scoreCutoffCSR = int(options.scoreCutoffCSR) if options.scoreCutoffCSR != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
+reportOnlyProductive = options.reportOnlyProductive
 runOncogenicRearrangements = options.runOncogenicRearrangements
 runOnlyOncogenicRearrangements = options.runOnlyOncogenicRearrangements
 mapqOnco = str(options.mapqOnco)
@@ -450,6 +476,9 @@ genesOncoIg = options.genesOncoIg
 customGenesOncoIg = options.customGenesOncoIg.split(",")
 genesOncoIgDistance = options.genesOncoIgDistance
 customGenesOncoIgDistance = options.customGenesOncoIgDistance
+estimatePurity = options.estimatePurity
+estimatePurityCoverage = options.estimatePurityCoverage
+plotPurityCoverage = options.plotPurityCoverage
 pathToSamtools = options.pathToSamtools if options.pathToSamtools == "" else options.pathToSamtools+"/"
 threadsForSamtools = str(options.threadsForSamtools)
 
@@ -477,9 +506,27 @@ if seq == "amplicon" and refGenome is None and annotateSeq == "igblast":
 if annotateSeq == "igblast" and annotateSeqDB == "ogrdb" and geneToAnalyze in ["tcr", "both"]:
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... the 'ogrdb' can only be used to annotate IG genes. Please, use 'imgt' database to analyze TCR or IG+TCR. You can also analyze IG and TCR in independent runs, using 'ogrdb' for IG analyses.")
 
+## Check collapse sequences:
+if collapseSequencesSimilarity < 0 or collapseSequencesSimilarity > 1: 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -css / --collapseSequencesSimilarity should be a float between 0 and 1.")
+
+## Check minimum number of nucleotides to consider split-reads:
+if minimumNumberOfNucleotidesSoft <= 0: 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -mnns / --minimumNumberOfNucleotidesSoft should be an integer higher than 0.")
+
 ## Check primer for amplicon:
 if seq == "amplicon" and primer is None:
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... primer has to be specified if '-seq amplicon' using the '-pr/--primer' argument.")
+if primer == "Vseq" and primerFasta == "": 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... '-prf/--primerFasta' must be specified if '-pr/--primer' is 'Vseq'.")
+
+## Check tumor purity:
+if tumorPurity < 0 or tumorPurity > 1: 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -p / --tumorPurity should be a float between 0 and 1.")
+
+## Check VAF:
+if len(vafCutoff) != 2: 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -vaf / --vafCutoff should be of the form '0.66,0.1'.")
 
 ## Note on TRBV30 and TRDV3 (- strand post J genes):
 if geneToAnalyze in ["tcr", "both"]:
@@ -573,7 +620,7 @@ if runOnlyOncogenicRearrangements == "no":
 		
 		# 5) Find combinations of J-V:
 		l = findCombinationsJandV(annot_table_JV, GENE)
-		
+
 		# 6) Assign positions/breaks to each J and V pairs:
 		VJ_positions, data, pos = assignPositionsToJandV(l, annot_table_JV, seq, GENE)
 
@@ -583,7 +630,7 @@ if runOnlyOncogenicRearrangements == "no":
 
 			# 8) Clean positions and occurrences:
 			information = cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq)
-			
+
 			# 9) Add readnames:
 			information = addReadNames(GENE, information, annot_table_JV)
 
@@ -592,21 +639,21 @@ if runOnlyOncogenicRearrangements == "no":
 
 			# 11) Get D sequences (IGH/TRB/TRD = N-D-N, IGK/IGL/TRA/TRG = N):
 			information = getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft, seq, bedFile, refGenome, miniBamT, pathToSamtools, errLogMpileup)
-			
-			# 12) Remove low support rearrangements and adjust insertSize only rearrangements:
-			information = removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV)
 
-			# 13) Re-get J and V sequences if seq is not amplicon:
+			# 12) Remove low support rearrangements and adjust insertSize only rearrangements:
+			information = removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV, seqDepth)
+			
+			# 13) Re-get J and V sequences:
 			## second round: to phase reads based on mutations
 			## third round: to get final sequence based on all reads assigned to each rearrangement
-			information = getJandVsequences("second", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)				
+			information = getJandVsequences("second", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
 			information = getJandVsequences("third", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
-			
-			# 14) Collapse rearrangements with the same nucleotide sequence:
-			information = collapseSequences(information)
-						
+
+			# 14) Collapse rearrangements with similar nucleotide sequences:
+			if collapseSequences == "yes": information = doCollapseSequences(information, collapseSequencesSimilarity, GENE)
+
 			# 15) Check homology and functionality (productive/unproductive):
-			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency)
+			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta)
 
 			# 16) Add mapping quality and calculate score:
 			information = addMapQualAndScore(information, miniBamT, tumorPurity, pathToSamtools, threadsForSamtools)
@@ -619,7 +666,7 @@ if runOnlyOncogenicRearrangements == "no":
 			if GENE == "IGL" and R110annotation == "yes": information = annotateR110mutation(information)
 			
 			# 19) Pre-defined filter:
-			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion)
+			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion, collapseSequencesSimilarity)
 			
 			# 20) Save output and clean:
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
@@ -629,7 +676,7 @@ if runOnlyOncogenicRearrangements == "no":
 				if reportReadNames == "yes": indxs.append(24)
 				Vseq.write("\n".join(['\t'.join(map(str, (item[i] for i in indxs))) for item in information])+"\n")
 			Vseq.close()
-
+			
 			if len(trip) != 0:
 				indxs = [0,21,22,24,14,16,17,18,19,15]
 				if reportReadNames == "yes": indxs.append(23)
@@ -678,7 +725,7 @@ SUMM.close()
 if estimatePurity == "yes" and runOnlyOncogenicRearrangements == "no":
 	print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: calculating purity...")
 	if bamN is None: print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: warning message... purity estimates are more accurately calculated when using a normal BAM file (either paired or unpaired) as a reference.")
-	getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, reportReadNames, errLogMpileup)
+	getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup)
 
 # 25) Clean tmp folder, mini IG bam files - if specified - and close:
 subprocess.call("rm -r "+wkDir+"/tmp" , shell=True)
