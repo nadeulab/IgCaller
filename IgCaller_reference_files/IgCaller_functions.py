@@ -17,7 +17,10 @@ import gzip
 import pickle
 from difflib import SequenceMatcher
 from Bio.Align import PairwiseAligner
-from Bio import pairwise2
+import pandas as pd
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # dicts
 complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'R': 'Y', 'Y': 'R', 'S': 'S', 'W': 'W', 'K': 'M', 'M': 'K', 'B': 'V', 'V': 'B', 'D': 'H', 'H': 'D', 'N': 'N', 'X': 'N', '[': ']', ']': '[', '(': ')', ')': '('}
@@ -56,6 +59,23 @@ def smithwaterman(x, y, match_score=5, mismatch_cost=4, gap_cost=8):
 	i_, j_ = np.unravel_index(M_flip.argmax(), M_flip.shape)
 	i, j = np.subtract(M.shape, (i_ + 1, j_ + 1))
 	return M[i,j]
+
+def flagToCustomBinary(flag):
+	binary = format(int(flag), "b")
+	binary = ("0"*(12-len(binary)))+binary
+	return(binary[::-1])
+
+def CustomSequenceMatcher(seqA, seqB):
+	matches = 0
+	total = 0
+	if len(seqA) == len(seqB):
+		for pos in range(len(seqA)):
+			if seqA[pos] == "N" or seqB[pos] == "N": 
+				continue
+			if seqA[pos] == seqB[pos]: 
+				matches += 1
+			total += 1
+	return(0 if total == 0 else matches/total)
 
 def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateSeqDB):
 	Dseqs = "NA"
@@ -164,11 +184,6 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 		snps_file = inputsFolder+"/hg38/PoN/SNPsInJandVgenes_hg38.txt"
 	
 	return(chromGene, coordsToSubsetLocus, bedFile, Dseqs, germline_db_J, germline_db_D, germline_db_V, snps_file)
-
-def flagToCustomBinary(flag):
-	binary = format(int(flag), "b")
-	binary = ("0"*(12-len(binary)))+binary
-	return(binary[::-1])
 	
 def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleotidesSoft):
 	
@@ -179,9 +194,8 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 	for i in samfile:
 		
 		w = i.rstrip("\n").split("\t")
-		
+
 		if w[5] != "*" and w[6] == "=":
-			
 			sa = []
 			# analyse values after qualities, starting with SA...
 			for x in (w[11:]):
@@ -189,16 +203,25 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 					sa.append(x)
 			# takes values from position 0 to 9th and appends SA... in the 10th
 			if len(sa) != 0:
-				w = w[:10]+[sa[0]]
-				# keep read only if SA in the same chrom or in contigs
-				chromSA = w[10].split(":")[2].split(",")[0]
-				if chromSA != chromGene and chromSA.replace("chr", "") in ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","X","Y"]:
-					continue
+				sa = sa[0]
+				saSplit = sa.split(",")
+				# chromosome of SA must be equal to chromGene:
+				if saSplit[0].split(":")[2] == chromGene:
+					# force SA alignment close to insertSize if split-insertSize
+					if abs(int(w[8])) > 10000:
+						if abs(int(saSplit[1]) - int(w[7])) <= 1000: # 1000 bp considering standard insert size range
+							w = w[:10]+[sa]
+						else:
+							w = w[:10]+["NA"]
+					else:
+						w = w[:10]+[sa]
+				else:
+					w = w[:10]+["NA"]
 			else:
 				w = w[:10]+["NA"]
 				
 			w.append("NA") # temporal NA to add later "split" or "insertSize" on 11th position
-			
+
 			split1 = re.findall(r'[A-Za-z]|[0-9]+', w[5])
 			two1 = [split1[x:x+2] for x in range(0, len(split1),2)]
 			split2 = w[10].split(',') # split SA...
@@ -246,7 +269,7 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 				w.append(a)
 				
 				# second PosSplit
-				if w[10].startswith("SA:Z") and split2[0].split(':')[2] == chromGene:
+				if w[10].startswith("SA:Z"):
 					
 					split3 = re.findall(r'[A-Za-z]|[0-9]+', split2[3])
 					two2 = [split3[x:x+2] for x in range(0, len(split3),2)]
@@ -280,7 +303,7 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 						else:  # reads -> <- or -> -> => substract diffMappingBases at first read soft clipped position
 							w[-2] = w[-2] - diffMappingBases
 				
-				# for reads not in chromGene add NA
+				# for non split-reads add NA
 				else:
 					w.append("NA")
 				
@@ -324,7 +347,7 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 				w.extend(["NA"]* 4) # if it is neither insertSize nor split we add the five empty columns for it
 			
 			# dict store:
-			if w[0] not in store: # w[0] is read name
+			if w[0] not in store:
 				if w[11] == "split" or w[11] == "insertSize" or w[11] == "split-insertSize":
 					store[w[0]] = w
 			
@@ -360,6 +383,16 @@ def findJandVgenes(annot_table, bedFile, GENE, genomeVersion):
 
 	for i in insertsplit:
 		w = i.rstrip("\n").split("\t")
+
+		# recover information from insertSize if second position has not been found
+		if w[13] == "NA" and w[15] == "NA" and abs(int(w[8])) > 10000:
+			w[15] = w[7]
+			if w[14] == "NA": w[14] = w[12]
+			if int(w[14]) > int(w[15]):
+				w14 = w[14]
+				w[14] = w[15]
+				w[15] = w14
+		
 		w.extend(["NA"]* 4) # we add 4 new columns where we will add new information
 		for j in range(12,16):
 			if w[j] != "NA": 
@@ -991,6 +1024,9 @@ def getJandVsequences(round, seq, phaseReadsBasedOnMutations, information, annot
 						else: # third
 							vSeqIn = i[13]
 							vSeqGermIn = i[14]
+						if i[1] == "Inversion1" or i[1] == "Inversion2":
+							vSeqIn = ''.join(complement[base] for base in reversed(vSeqIn))
+							vSeqGermIn = ''.join(complement[base] for base in reversed(vSeqGermIn))
 						tumorSeqBK = {}
 						germSeqBK = {}
 						nuc = int(i[z+1])-int(i[z]) + 1
@@ -1567,30 +1603,63 @@ def fillInGapBetweenDandV(dSeq, potentialReadNames, i, bedFile, minimumNumberOfN
 	gapFound = "NotFound"
 	nGapFound = "NotFound"
 	if potentialGap != "":
-		dAlignment = pairwise2.align.localms(potentialGap, dSeq, 2, -1, -1000, -1000)
-		# get alignment that ends at the minimum position (closer to the start position of the V gene)
-		bestFirstAlignment = min(dAlignment, key=lambda aln: aln.end)
-		# force stitching (potentialGap [a]: ---xx[nnn], dSeq [b]: nnnxx----)
-		if not bestFirstAlignment.seqA.endswith("-") and not bestFirstAlignment.seqB.startswith("-"):
-			numMatches = sum(1 for a, b in zip(bestFirstAlignment.seqA[bestFirstAlignment.start:bestFirstAlignment.end], bestFirstAlignment.seqB[bestFirstAlignment.start:bestFirstAlignment.end]) if a == b and a != "-" and b != "-")
-			lenAlignment = bestFirstAlignment.end - bestFirstAlignment.start
-			ratioMatchesMissmatches = numMatches/lenAlignment
-			# force minimum length and matches in alignment based on position
-			empySeqBstart = bestFirstAlignment.start - (len(re.match(r"^-+", bestFirstAlignment.seqA).group()) if re.match(r"^-+", bestFirstAlignment.seqA) else 0)
-			condiA = empySeqBstart < 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8
-			condiB = empySeqBstart >= 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoftAmplicon and ratioMatchesMissmatches >= 0.85
-			if condiA or condiB:
-				gapFound = bestFirstAlignment.seqA[bestFirstAlignment.end:-minimumNumberOfNucleotidesSoftAmplicon]
-				nGapFound = "N"*len(gapFound)
-				vStartNucleotidesGermline = bestFirstAlignment.seqA[bestFirstAlignment.start:bestFirstAlignment.end]
-				vStartNucleotidesTumor = bestFirstAlignment.seqB[bestFirstAlignment.start:bestFirstAlignment.end]
+		aligner = PairwiseAligner()
+		# force stitching without internal gap (potentialGap [a]: ---xx[nnn], dSeq [b]: nnnxx----)
+		aligner.mode = "global"
+		aligner.match_score = 2
+		aligner.mismatch_score = -1
+		aligner.open_gap_score = -1000
+		aligner.extend_gap_score = -1000
+		aligner.left_open_gap_score = 0
+		aligner.right_open_gap_score = 0
+		aligner.left_extend_gap_score = 0
+		aligner.right_extend_gap_score = 0
+		dAlignment = aligner.align(potentialGap, dSeq)
+		numAlignments = 0
+		try: numAlignments = len(dAlignment)
+		except OverflowError: numAlignments = 1000 
+		if numAlignments > 0:
+			# get alignment that ends at the minimum position (closer to the start position of the V gene) and check for stitching
+			stitchingOK = "no"
+			if str(dAlignment[0]).startswith("target"):
+				bestFirstAlignment = min(dAlignment, key=lambda aln: aln.aligned.shape[1])
+				alignA = [el for el in str(bestFirstAlignment).split("\n")[0].split(" ") if el != ""][-2]
+				alignS = [el for el in str(bestFirstAlignment).split("\n")[1].split(" ") if el != ""][-2]
+				alignB = [el for el in str(bestFirstAlignment).split("\n")[2].split(" ") if el != ""][-2]
+				if not alignA.endswith("-") and not alignB.startswith("-"):
+					stitchingOK = "yes"
+			else:
+				bestFirstAlignment = min(dAlignment, key=lambda aln: aln.aligned[1][-1][1])
+				alignA = str(bestFirstAlignment).split("\n")[0].replace(" ", "-")
+				alignS = str(bestFirstAlignment).split("\n")[1].replace(" ", "-")
+				alignB = str(bestFirstAlignment).split("\n")[2].replace(" ", "-")
+				if not alignA.endswith("-") and not alignB.startswith("-"):
+					stitchingOK = "yes"
+
+			if stitchingOK == "yes":
+				startIndx = alignS.find("|")
+				endIndx = alignS.rfind("|")+1
+				numMatches = sum(1 for a, b in zip(alignA[startIndx:endIndx], alignB[startIndx:endIndx]) if a == b and a != "-" and b != "-")
+				lenAlignment = endIndx - startIndx
+				ratioMatchesMissmatches = numMatches/lenAlignment
+				# force minimum length and matches in alignment based on position
+				empySeqBstart = startIndx - (len(re.match(r"^-+", alignA).group()) if re.match(r"^-+", alignA) else 0)
+				condiA = empySeqBstart < 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8
+				condiB = empySeqBstart >= 5+windowInBreak and lenAlignment >= minimumNumberOfNucleotidesSoftAmplicon and ratioMatchesMissmatches >= 0.85
+				if condiA or condiB:
+					gapFound = alignA[endIndx:-minimumNumberOfNucleotidesSoftAmplicon]
+					nGapFound = "N"*len(gapFound)
+					vStartNucleotidesGermline = alignA[startIndx:endIndx]
+					vStartNucleotidesTumor = alignB[startIndx:endIndx]
+	
 	return(vStartNucleotidesGermline, vStartNucleotidesTumor, gapFound, nGapFound)
 	
 def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft, seq, bedFile, refGenome, miniBamT, pathToSamtools, errLogMpileup):
 	
 	readsAlreadyRecovered = [] # list to append readNames when already recovered
 	toAddInInformation = [] # list to append to Information if same D with same length
-	
+	ndnBasesToAdd = 10 if GENE in ["IGH", "TRB", "TRD"] else 0 # number to count for N-D-N nucleotides while recovering J-V splits (works together with minimumNumberOfNucleotidesSoft) 
+
 	# Round 1: Recover V reads, sort, and recover J reads
 	for geneRound in [1, 2]:
 		for i in information:
@@ -1615,7 +1684,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 				for j in ANNOT_TABLE_JV:
 					w = j.rstrip("\n").split("\t")
 					if w[0] in readsAlreadyRecovered: continue
-					
+
 					if w[11].startswith("split"):
 
 						# if information last value J and first value V coincide with w split values
@@ -1674,20 +1743,46 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 								
 								# align soft clipped to get entire sequence
 								if jUnmap != "" and vUnmap != "":
-									unmapAlignment = pairwise2.align.localms(jUnmap, vUnmap, 2, -1, -1000, -1000)
-									if len(unmapAlignment) > 0:
+									aligner = PairwiseAligner()
+									# force stitching without internal gap
+									aligner.mode = "global"
+									aligner.match_score = 2
+									aligner.mismatch_score = -1
+									aligner.open_gap_score = -1000
+									aligner.extend_gap_score = -1000
+									aligner.left_open_gap_score = 0
+									aligner.right_open_gap_score = 0
+									aligner.left_extend_gap_score = 0
+									aligner.right_extend_gap_score = 0
+									unmapAlignment = aligner.align(jUnmap, vUnmap)
+									numAlignments = 0
+									try: numAlignments = len(unmapAlignment)
+									except OverflowError: numAlignments = 1000 
+									if numAlignments > 0:
 										unmapAlignment = unmapAlignment[0]
-										# force stitching condiA (a: xxxxx, b: xxxxx) or condiB (a: nnnxx--, b:---xxnnn)
-										condiA = not unmapAlignment.seqA.startswith("-") and not unmapAlignment.seqA.endswith("-") and not unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
-										condiB = not unmapAlignment.seqA.startswith("-") and unmapAlignment.seqA.endswith("-") and unmapAlignment.seqB.startswith("-") and not unmapAlignment.seqB.endswith("-")
-										if condiA or condiB:
-											numMatches = sum(1 for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB) if a == b and a != "-" and b != "-")
-											lenAlignment = unmapAlignment.end - unmapAlignment.start
+										if str(unmapAlignment).startswith("target"):
+											alignA = [el for el in str(unmapAlignment).split("\n")[0].split(" ") if el != ""][-2]
+											alignS = [el for el in str(unmapAlignment).split("\n")[1].split(" ") if el != ""][-2]
+											alignB = [el for el in str(unmapAlignment).split("\n")[2].split(" ") if el != ""][-2]
+										else:
+											alignA = str(unmapAlignment).split("\n")[0].replace(" ", "-")
+											alignS = str(unmapAlignment).split("\n")[1].replace(" ", "-")
+											alignB = str(unmapAlignment).split("\n")[2].replace(" ", "-")
+										# stitching conditions: condiA (a: xxxxx, b: xxxxx) or condiB (a: nnnxx--, b:---xxnnn) or condiC (a: xx---, b:xxnnn) or condiD (a: nnnxx, b:---xx)
+										condiA = not alignA.startswith("-") and not alignA.endswith("-") and not alignB.startswith("-") and not alignB.endswith("-")
+										condiB = not alignA.startswith("-") and alignA.endswith("-") and alignB.startswith("-") and not alignB.endswith("-")
+										condiC = not alignA.startswith("-") and alignA.endswith("-") and not alignB.startswith("-") and not alignB.endswith("-")
+										condiD = not alignA.startswith("-") and not alignA.endswith("-") and alignB.startswith("-") and not alignB.endswith("-")
+										if condiA or condiB or condiC or condiD:
+											startIndx = alignS.find("|")
+											endIndx = alignS.rfind("|")+1
+											numMatches = sum(1 for a, b in zip(alignA[startIndx:endIndx], alignB[startIndx:endIndx]) if a == b and a != "-" and b != "-")
+											lenAlignment = endIndx - startIndx
 											ratioMatchesMissmatches = numMatches/lenAlignment
 											# force minimum length and matches in alignment
 											if lenAlignment >= minimumNumberOfNucleotidesSoft and ratioMatchesMissmatches >= 0.8:
 												unmapNucs = []
-												for a, b in zip(unmapAlignment.seqA, unmapAlignment.seqB):
+												for a, b in zip(alignA, alignB):
 													if a != "-" and b == "-":
 														unmapNucs.append(a)
 													elif a == "-" and b != "-":
@@ -1703,6 +1798,9 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						
 						# if information last position J:
 						elif breakJ == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE not in ["IGL", "TRA", "TRB", "TRD"])):
+							# force insertSize read close to breakpoint
+							if w[11] == "split-insertSize" and abs(breakV - int(w[7])) > 1000: continue 
+							# cigar
 							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
 							cigar1 = [split[x:x+2] for x in range(0, len(split), 2)]
 							# MS cigar
@@ -1718,6 +1816,8 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								J = w[9][:mEnd]
 							
+							if len(J) < ndnBasesToAdd + minimumNumberOfNucleotidesSoft: continue
+
 							# Vseq: remove deleted nucleotides, check insertion at first bases, keep insertions not at first base:
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								vSeq = re.sub("\(.*?\)", "",  i[12])
@@ -1733,7 +1833,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 
 							if i[1] == "Inversion1": J = ''.join(complement[base] for base in reversed(J))
 
-							j = 0
+							j = ndnBasesToAdd
 							while j <= len(J)-minimumNumberOfNucleotidesSoft:
 								if vSeq.startswith(J[j:j+minimumNumberOfNucleotidesSoft]):
 									DseqTemp.append(J[:j])
@@ -1753,6 +1853,9 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 						
 						# if information first position V:
 						elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA" and ((geneRound == 1 and GENE not in ["IGL", "TRA", "TRB", "TRD"]) or (geneRound == 2 and GENE in ["IGL", "TRA", "TRB", "TRD"])):
+							# force insertSize read close to breakpoint
+							if w[11] == "split-insertSize" and abs(breakJ - int(w[7])) > 1000: continue 
+							# cigar
 							split = re.findall(r'[A-Za-z]|[0-9]+', w[5])
 							cigar1 = [split[x:x+2] for x in range(0, len(split),2)]
 							# MS cigar
@@ -1768,6 +1871,8 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 								mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ]) # we add numbers previous to S
 								V = w[9][:mEnd]
 							
+							if len(V) < ndnBasesToAdd + minimumNumberOfNucleotidesSoft: continue
+
 							# jSeq: remove deleted nucleotides, check insertion at last bases, keep insertions not at last base:
 							if GENE not in ["IGL", "TRA", "TRB", "TRD"]: 
 								jSeq = re.sub("\(.*?\)", "",  i[10])
@@ -1782,7 +1887,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 
 							if i[1] == "Inversion2": V = ''.join(complement[base] for base in reversed(V))
 							
-							v = len(V)
+							v = len(V) - ndnBasesToAdd
 							while v >= minimumNumberOfNucleotidesSoft:
 								if jSeq.endswith(V[v-minimumNumberOfNucleotidesSoft:v]):
 									DseqTemp.append(V[v:])
@@ -1954,7 +2059,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 			if readRecovered not in readsAlreadyRecovered:
 				readsAlreadyRecovered.append(readRecovered)
 
-	# Round 2: recover reads J-D and D-V
+	# Round 2: recover reads J-D and D-V (allow assignment to multiple potential rearrangements charing the same junction)
 	for i in information:
 
 		# Get soft clipped start/end J-V :  
@@ -2016,7 +2121,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 							else: 
 								i[9] += 1 # count split V
 								i[18] = w[0] if i[18] == "" else i[18]+","+w[0]
-							readsAlreadyRecovered.append(w[0])
+							# readsAlreadyRecovered.append(w[0]) # commented to allow here read to be considered in multiple potential rearrangements
 					
 					# if information first position V:
 					elif breakV == int(w[12].replace("NA", "0")) and w[13] == "NA":
@@ -2057,14 +2162,15 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 							else: 
 								i[6] += 1 # count split J
 								i[17] = w[0] if i[17] == "" else i[17]+","+w[0]							
-							readsAlreadyRecovered.append(w[0])
+							# readsAlreadyRecovered.append(w[0]) # commented to allow here read to be considered in multiple potential rearrangements
+			
 			ANNOT_TABLE_JV.close()
 
 	# sort and return information
 	information.sort(key=lambda p: round(p[2]*2 + p[3] + p[6]*2 + p[9]*2, 1), reverse=True)
 	return(information)
 
-def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV):
+def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV, seqDepth):
 	
 	informationClean = [] # list to store information that pass filters
 	informationCleanTmp = [] # list to store information that pass filters temporarily
@@ -2075,7 +2181,7 @@ def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, 
 	# 1. keep rearrangements with split-reads
 	for i in information:
 		spl = int(i[2]) + int(i[6]) + int(i[9])
-		if spl > 0:
+		if (seqDepth != "high" and spl > 0) or (seqDepth == "high" and spl > 1):
 			informationCleanTmp.append(i)
 			if i[0] not in pairsOfGenes: pairsOfGenes.append(i[0])
 			if i[-3] != "": readNamesUsed.extend(i[-3].split(","))
@@ -2120,7 +2226,7 @@ def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, 
 	# 4. return
 	return(informationClean)
 
-def collapseSequences(information):	
+def doCollapseSequences(information, collapseSequencesSimilarity, GENE):	
 
 	# initiate dict and list
 	updatedInformation = []
@@ -2142,52 +2248,42 @@ def collapseSequences(information):
 			seqIs = "geneIDs"
 		
 		foundInDict = "no"
-		allNucleotidesEqual = "no"
 		if seq in seqDict:
 			foundInDict = "yes"
 			seqInDictToMatch = seq
 		elif seqIs == "sequence":
 			for seqInDict in seqDict:
-				if seqDict[seqInDict][16] == "NA": continue
-				if len(seq) == len(seqInDict):
-					allNucleotidesEqual = "yes"
-					for pos in list(range(len(seq))):
-						if seq[pos] == "N" or seqInDict[pos] == "N": continue
-						if seq[pos] != seqInDict[pos]: 
-							allNucleotidesEqual = "no"
-							break
-					if allNucleotidesEqual == "yes": 
+				if seqDict[seqInDict][16] == "NA": 
+					continue
+				# check if same length, similar sequence
+				elif len(seq) == len(seqInDict):
+					if CustomSequenceMatcher(seq, seqInDict) > collapseSequencesSimilarity:
 						foundInDict = "yes"
 						seqInDictToMatch = seqInDict
 						break
-				if foundInDict == "no":
-					# check if partial sequence matches exactly a complete sequence
-					if seqInDict.startswith(seq) or seqInDict.endswith(seq):
-						foundInDict = "yes_butPartial"
-						seqInDictToMatch = seqInDict
-						break
-					# check if complete sequence matches exactly a partial sequence
-					elif seq.startswith(seqInDict) or seq.endswith(seqInDict):
-						foundInDict = "yes_butPartial_needToChangeSeq"
-						seqInDictToMatch = seqInDict
-						break
-					# check if partial sequences matches >0.95 a complete sequence (JD / DV)
-					elif len(seqInDict) > len(seq) and ( SequenceMatcher(None, seqInDict[:len(seq)], seq).ratio() > 0.95 or SequenceMatcher(None, seqInDict[-len(seq):], seq).ratio() > 0.95 ):
-						foundInDict = "yes_butPartial"
-						seqInDictToMatch = seqInDict
-						break
-					# check if complete sequences matches >0.95 a partial sequence (JD / DV)
-					elif len(seq) > len(seqInDict) and ( SequenceMatcher(None, seq[:len(seqInDict)], seqInDict).ratio() > 0.95 or SequenceMatcher(None, seq[-len(seqInDict):], seqInDict).ratio() > 0.95 ):
-						foundInDict = "yes_butPartial_needToChangeSeq"
-						seqInDictToMatch = seqInDict
-						break
-					# else, check if very similar sequences
-					else:
-						aligner = PairwiseAligner()
-						aligner.match_score = 1
-						aligner.mismatch_score = -1
-						aligner.open_gap_score = -3
-						alignments = aligner.align(seq, seqInDict)
+				# check if partial sequence matches exactly a complete sequence
+				elif seqInDict.startswith(seq) or seqInDict.endswith(seq):
+					foundInDict = "yes_butPartial"
+					seqInDictToMatch = seqInDict
+					break
+				# check if complete sequence matches exactly a partial sequence
+				elif seq.startswith(seqInDict) or seq.endswith(seqInDict):
+					foundInDict = "yes_butPartial_needToChangeSeq"
+					seqInDictToMatch = seqInDict
+					break
+				# check if different length, similar sequence
+				else:
+					aligner = PairwiseAligner()
+					aligner.mode = "global"
+					aligner.match_score = 1
+					aligner.mismatch_score = -1
+					aligner.open_gap_score = -3
+					aligner.extend_gap_score = -1
+					alignments = aligner.align(seq, seqInDict)
+					numAlignments = 0
+					try: numAlignments = len(alignments)
+					except OverflowError: numAlignments = 1000 
+					if numAlignments > 0:
 						if str(alignments[0]).startswith("target"):
 							align_seq = str(alignments[0][0])
 							align_seqInDict = str(alignments[0][1])
@@ -2195,9 +2291,14 @@ def collapseSequences(information):
 							align_seq = str(alignments[0]).split("\n")[0]
 							align_seqInDict = str(alignments[0]).split("\n")[2]
 						ratio = sum(1 for a, b in zip(align_seq, align_seqInDict) if a == b) / len(align_seq)
-						if ratio > 0.99:
-							foundInDict = "yes_butNotIdenticalSeq"
-							seqInDictToMatch = seqInDict
+						if ratio > collapseSequencesSimilarity:
+							# if so, get sequence with less Ns...
+							if sum(1 for nuc in seqInDict if nuc == "N") <= sum(1 for nuc in seq if nuc == "N"):
+								foundInDict = "yes_butNotIdenticalSeq"
+								seqInDictToMatch = seqInDict
+							else:
+								foundInDict = "yes_butNotIdenticalSeq_needToChangeSeq"
+								seqInDictToMatch = seqInDict
 							break
 		
 		if foundInDict == "no":
@@ -2236,9 +2337,16 @@ def collapseSequences(information):
 			if foundInDict == "yes" and seqDict[seqInDictToMatch][16] != "NA" and "N" in seqDict[seqInDictToMatch][16]:
 				seqInDict = seqDict[seqInDictToMatch][16]
 				adjustedSeq = ''.join(seq[i] if seqInDict[i] == 'N' else seqInDict[i] for i in range(len(seqInDict)))
-				seqDict[seqInDictToMatch][16] = adjustedSeq
-			## if partial sequence in dict, update with complete sequence information
-			if foundInDict == "yes_butPartial_needToChangeSeq":
+				seqDict[seqInDictToMatch][16] = adjustedSeq # update JDV tumor seq
+				if GENE in ["IGL", "TRA", "TRB", "TRD"]:
+					seqDict[seqInDictToMatch][11] = adjustedSeq[-len(seqDict[seqInDictToMatch][11]):] # update J
+					seqDict[seqInDictToMatch][13] = adjustedSeq[:len(seqDict[seqInDictToMatch][13])] # update V tumor
+				else:
+					seqDict[seqInDictToMatch][11] = adjustedSeq[:len(seqDict[seqInDictToMatch][11])] # update J
+					seqDict[seqInDictToMatch][13] = adjustedSeq[-len(seqDict[seqInDictToMatch][13]):] # update V tumor
+
+			## if partial sequence in dict, update with complete sequence information or if very similar sequence coupled with need to change it
+			if foundInDict == "yes_butPartial_needToChangeSeq" or foundInDict == "yes_butNotIdenticalSeq_needToChangeSeq":
 				seqDict[seqInDictToMatch][0] = p[0]
 				seqDict[seqInDictToMatch][4] = p[4]
 				seqDict[seqInDictToMatch][5] = p[5]
@@ -2303,7 +2411,7 @@ def productivityAndCDR3(vdj, nCDR3, GENE):
 			
 			tripMotif = re.findall('.{3}', nCDR3[po:po+12])
 			
-			if len(tripMotif) == 4:           
+			if len(tripMotif) == 4:
 				if "N" in tripMotif[1]: continue
 		
 				if "N" in tripMotif[3]: 
@@ -2566,7 +2674,91 @@ def checkHomologyAndFunctionality(information, GENE):
 		
 	return(information)
 
-def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency):
+def removePrimerFromSeq(seqToIgblast, GENE, primerFasta):
+	
+	strand = "pos" if GENE in ["IGL", "TRA", "TRB", "TRD"] else "neg"
+	
+	# remove N from V gene
+	if strand == "pos":
+		seqToIgblast_woN = seqToIgblast.lstrip("N")
+	else: 
+		seqToIgblast_woN = seqToIgblast.rstrip("N")
+
+	# initialize variables	
+	nextLine = False
+	matchFound = False
+	maxScore = "NA"
+	lenMaxScore = "NA"
+
+	# iterate primers and align
+	FASTA = open(primerFasta, "r")
+	for fLine in FASTA:
+		if fLine.startswith(">"+GENE):
+			nextLine = True
+		elif fLine.startswith(">"):
+			nextLine = False
+		elif nextLine:
+			pSeq = fLine.rstrip("\n")
+			if strand == "pos":
+				seqToMap = seqToIgblast_woN[:len(pSeq)]
+			else: 
+				pSeq = ''.join(complement[base] for base in reversed(pSeq))
+				seqToMap = seqToIgblast_woN[-len(pSeq):]
+
+			# align
+			aligner = PairwiseAligner()
+			# force stitching without internal gap
+			aligner.mode = "global"
+			aligner.match_score = 2
+			aligner.mismatch_score = -1
+			aligner.open_gap_score = -1000
+			aligner.extend_gap_score = -1000
+			aligner.left_open_gap_score = 0
+			aligner.left_extend_gap_score = 0
+			aligner.right_open_gap_score = 0
+			aligner.right_extend_gap_score = 0
+			alignments = aligner.align(seqToMap, pSeq)
+			numAlignments = 0
+			try: numAlignments = len(alignments)
+			except OverflowError: numAlignments = 1000 
+			if numAlignments > 0:
+				alignment_score = float(alignments[0].score)
+				if str(alignments[0]).startswith("target"):
+					align_seqToMap = str(alignments[0][0])
+					align_pSeq = str(alignments[0][1])
+				else:
+					align_seqToMap = str(alignments[0]).split("\n")[0]
+					align_pSeq = str(alignments[0]).split("\n")[2]
+				
+				# remove gaps from primer sequence alignment
+				if align_pSeq.startswith("-"): start_count = len(align_pSeq) - len(align_pSeq.lstrip('-'))
+				else: start_count = 0
+				if align_pSeq.endswith("-"): 
+					end_count = len(align_pSeq) - len(align_pSeq.rstrip('-'))
+					corrected_seqToMap = align_seqToMap[start_count:-end_count]
+				else: 
+					corrected_seqToMap = align_seqToMap[start_count:]
+				
+				# remove gaps from aligned sequenced
+				corrected_seqToMap = corrected_seqToMap.rstrip("-").lstrip("-").replace("-", "")
+
+				if maxScore == "NA" or alignment_score > maxScore:
+					maxScore = alignment_score
+					lenMaxScore = len(corrected_seqToMap)
+					matchFound = True
+			
+			# restart nextLine
+			nextLine = False
+	FASTA.close()
+	
+	# return clean sequence
+	if matchFound:
+		if strand == "pos": seqToIgblast_woN = seqToIgblast_woN[lenMaxScore:]
+		else: seqToIgblast_woN = seqToIgblast_woN[:-lenMaxScore]
+	
+	return(seqToIgblast_woN)
+
+def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta):
 
 	if len(information) > 0:
 		platformSystem = "macos" if platform.system() == "Darwin" else "linux"
@@ -2580,6 +2772,10 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 		for i in information:
 			IGBLAST.write(">seq_"+str(countSeq)+"\n")
 			seqToIgblast = "NA" if len(i[0].split(" - ")) == 2 and (i[0].split(" - ")[0][3] == "D" or i[0].split(" - ")[1][3] == "D") else i[16]
+			# if seq is amplicon and sequences of primers are specified, remove primer annealing to V gene from sequence
+			if seq == "amplicon" and primer == "Vseq" and seqToIgblast != "NA": 
+				seqToIgblast = removePrimerFromSeq(seqToIgblast, GENE, primerFasta) # remove primer
+				i[16] = seqToIgblast # update sequence in information
 			IGBLAST.write(seqToIgblast+"\n")
 			countSeq += 1
 		IGBLAST.close()
@@ -2600,6 +2796,41 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 			print("IgCaller: error message (3/4)... "+igblastn+" --help")
 			print("IgCaller: error message (4/4)... Once this error is solved, please, re-run IgCaller.")
 			sys.exit(1)
+		
+		# If seq is amplicon and fasta sequences of primers are not provided, re-run IgBlast using only 'amplified' sequence starting after the primer location
+		if seq == "amplicon" and primer != "Vseq":
+			IGBLAST = open(igblast_in, "w")
+			IGBLAST_INT = open(igblast_out, "r")
+			for igblastLine in IGBLAST_INT:
+				if igblastLine.startswith("sequence_id"): continue
+				igblastList = igblastLine.rstrip("\n").split("\t")
+				igblastSeqName = igblastList[0]
+				igblastSeq = igblastList[1]
+				if igblastSeq != "NA":
+					if primerStringency == "strict":
+						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
+						elif primer == "fr1" and igblastList[80] != "": posStart = 80 # cdr1 start
+						elif primer == "cdr1" and igblastList[82] != "": posStart = 82 # fr2 start
+						elif primer == "fr2" and igblastList[84] != "": posStart = 84 # cdr2 start
+						elif primer == "cdr2" and igblastList[86] != "": posStart = 86 # fr3 start
+						else: posStart = "NA" # NA when primer is at fr3 or region to start is empty
+					else: # permissive
+						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
+						elif (primer == "fr1" or (primer in ["leader"] and igblastList[78] == "")) and igblastList[80] != "": posStart = 80 # cdr1 start
+						elif (primer == "cdr1" or (primer in ["leader", "fr1"] and igblastList[80] == "")) and igblastList[82] != "": posStart = 82 # fr2 start
+						elif (primer == "fr2" or (primer in ["leader", "fr1", "cdr1"] and igblastList[82] == "")) and igblastList[84] != "": posStart = 84 # cdr2 start
+						elif (primer == "cdr2" or (primer in ["leader", "fr1", "cdr1", "fr2"] and igblastList[84] == "")) and igblastList[86] != "": posStart = 86 # fr3 start
+						else: posStart = "NA" # NA when primer is at fr3 or previous regions are empty
+					if posStart != "NA":
+						igblastSeq = igblastSeq[(int(igblastList[posStart])-1):]
+						information[int(igblastList[0].split("_")[1])][16] = igblastSeq # update sequence in information
+				IGBLAST.write(">"+igblastSeqName+"\n")
+				IGBLAST.write(igblastSeq+"\n")
+			IGBLAST_INT.close()
+			IGBLAST.close()
+			
+			comm = igblastn+" -germline_db_V "+germline_db_V+" -germline_db_J "+germline_db_J+" -germline_db_D "+germline_db_D+" -organism human -ig_seqtype "+ig_seqtype+" -auxiliary_data "+aux_data+" -show_translation -outfmt 19 -extend_align5end -extend_align3end -num_alignments_D "+num_alignments_D+" -num_threads 1 -query "+igblast_in+" > "+igblast_out
+			e = subprocess.call(comm, shell=True, env=dict(os.environ))
 
 		# Merge IgBlast output with "information"
 		IGBLAST = open(igblast_out, "r")
@@ -2618,7 +2849,12 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				# Productive/unproductive
 				if aaCDR3 == "":
 					aaCDR3 = "NA"
-					productiu = "No junction found"
+					if igblastList[7] == "F" and igblastList[4] == "T":
+						productiu = "Unproductive (stop codons, no junction found)"
+					elif igblastList[7] == "F":
+						productiu = "Unproductive (no junction found)"
+					else:
+						productiu = "No junction found [confirm using IMGT/V-QUEST]"
 				elif igblastList[7] == "T" and igblastList[5] == "T" and igblastList[4] == "F": # 7 = productive, 5 = vj_in_frame, 4 = stop_codon
 					productiu = "Productive (no stop codon and in-frame junction)"
 				elif igblastList[7] == "F" and igblastList[5] == "F" and igblastList[4] == "F": # 7 = productive, 5 = vj_in_frame, 4 = stop_codon
@@ -2628,36 +2864,16 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				elif igblastList[7] == "F" and igblastList[5] == "T" and igblastList[4] == "T": # 7 = productive, 5 = vj_in_frame, 4 = stop_codon
 					productiu = "Unproductive (stop codons)"
 				elif igblastList[7] == "T":
-					productiu = "Productive (confirm using IMGT/V-QUEST)"
+					productiu = "Productive [confirm using IMGT/V-QUEST]"
 				elif igblastList[7] == "F":
-					productiu = "Unproductive (confirm using IMGT/V-QUEST)"
+					productiu = "Unproductive [confirm using IMGT/V-QUEST]"
 				else:
 					productiu = "Check at IMGT/V-QUEST"
 				
 				# Homology
 				fr1fr3_t = "NA"
 				fr1fr3_gl = "NA"
-				if seq == "amplicon":
-					if primerStringency == "strict":
-						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
-						elif primer == "fr1" and igblastList[80] != "": posStart = 80 # cdr1 start
-						elif primer == "cdr1" and igblastList[82] != "": posStart = 82 # fr2 start
-						elif primer == "fr2" and igblastList[84] != "": posStart = 84 # cdr2 start
-						elif primer == "cdr2" and igblastList[86] != "": posStart = 86 # fr3 start
-						else: posStart = "NA" # NA when primer is at fr3 or region to start is empty
-					else: # permissive
-						if primer == "leader" and igblastList[78] != "": posStart =  78 # fr1 start
-						elif (primer == "fr1" or (primer in ["leader"] and igblastList[78] == "")) and igblastList[80] != "": posStart = 80 # cdr1 start
-						elif (primer == "cdr1" or (primer in ["leader", "fr1"] and igblastList[80] == "")) and igblastList[82] != "": posStart = 82 # fr2 start
-						elif (primer == "fr2" or (primer in ["leader", "fr1", "cdr1"] and igblastList[82] == "")) and igblastList[84] != "": posStart = 84 # cdr2 start
-						elif (primer == "cdr2" or (primer in ["leader", "fr1", "cdr1", "fr2"] and igblastList[84] == "")) and igblastList[86] != "": posStart = 86 # fr3 start
-						else: posStart = "NA" # NA when primer is at fr3 or previous regions are empty
-					if posStart != "NA":
-						subseq = igblastList[1][(int(igblastList[posStart])-1):int(igblastList[87])]
-						startPosInAlignmentIgBlast = igblastList[14].rfind(subseq)
-						fr1fr3_t = igblastList[14][startPosInAlignmentIgBlast:startPosInAlignmentIgBlast+len(subseq)]
-						fr1fr3_gl = igblastList[15][startPosInAlignmentIgBlast:startPosInAlignmentIgBlast+len(subseq)]
-				elif igblastList[87] != "" and igblastList[78] != "": # FR1-CDR1-FR2-CDR2-FR3
+				if igblastList[87] != "" and igblastList[78] != "": # FR1-CDR1-FR2-CDR2-FR3
 					fr1fr3_length = int(igblastList[87])-int(igblastList[78])+1
 					fr1fr3_t = igblastList[14][:fr1fr3_length]
 					fr1fr3_gl = igblastList[15][:fr1fr3_length]
@@ -2681,6 +2897,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				
 				# Add to information
 				p = information[int(igblastList[0].split("_")[1])]
+				if p[2] == 0 and p[6] == 0 and p[9] == 0 and p[12] == "": productiu = "Rearrangement without junction coverage"
 				p.append(pctHomology)
 				p.append(numHomology)
 				p.append(productiu)
@@ -2691,8 +2908,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				p = information[int(igblastList[0].split("_")[1])]
 				p.append("NA")
 				p.append("NA")
-				if p[4] == "NA": txtToAppend = "Rearrangement without junction coverage"
-				elif len(p[0].split(" - ")) == 2 and (p[0].split(" - ")[0][3] == "D" or p[0].split(" - ")[1][3] == "D"): txtToAppend = "Partial rearrangement"
+				if len(p[0].split(" - ")) == 2 and (p[0].split(" - ")[0][3] == "D" or p[0].split(" - ")[1][3] == "D"): txtToAppend = "Partial rearrangement"
 				else: txtToAppend = "NA"
 				p.append(txtToAppend)
 				p.append("NA")
@@ -2804,7 +3020,7 @@ def annotateR110mutation(information):
 			i[21] = i[21]+" [R110]"
 	return(information)
 
-def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion):
+def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion, collapseSequencesSimilarity):
 
 	trip = {} # dict to save passing rearrangements
 	kdeCount = 2 # max number of Kde-RSS in filtered file
@@ -2821,6 +3037,8 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 		phasing_pct = 0 if line[15] == "NA" else float(line[15].split("/")[0])/float(line[15].split(" ")[0].split("/")[1])*100 if line[15].split(" ")[0].split("/")[1] != "0" else 100
 		muts_low_confidence = 300 if line[15] == "NA" else float(line[15].split(" - ")[1])
 		ident = 100 if line[17] == "NA" else float(line[17])
+		nw2 = line[21].split(" - ") # annotated values based on IgBlast
+		nw2 = [g.split("*")[0] for g in nw2] # remove alleles and keep first gene 
 
 		# 1) Hard filters
 		## Mechanism
@@ -2898,179 +3116,220 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 				
 			## d) no Partial and no Kde-RSS:
 			else:
-				### d1) check if same CDR3 is already annotated...	
-				if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
-					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
-						if trip[keys][18] == "Partial rearrangement": continue
-						dict_spl_ins = trip[keys][21]
-						dict_spl_ins_phased = len(trip[keys][23].split(","))
-						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
-						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
-						dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
-						dict_ident = 100 if trip[keys][16] == "NA" else float(trip[keys][16])
-						
-						if line[20] == trip[keys][19]:
-							if (spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25) or (ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.75 and spl_ins_phased <= dict_spl_ins_phased*1.25): # if similar scores
-								if phasing_pct > dict_phasing_pct: # based on phasing
-									del trip[keys]
-								elif dict_phasing_pct > phasing_pct:
-									pr = 1
-								elif muts_low_confidence < 3 and dict_muts_low_confidence > 3 and muts_low_confidence < dict_muts_low_confidence*2: # based on number of potential mutations not correctly phased, keep lowest number
-									del trip[keys]
-								elif muts_low_confidence > 3 and dict_muts_low_confidence < 3 and muts_low_confidence > dict_muts_low_confidence*2:
-									pr = 1
-								elif mq > 50 and dict_mq < 10: # based on map qual
-									del trip[keys]
-								elif mq < 10 and dict_mq > 50:
-									pr = 1
-								elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased:
-									del trip[keys]
-								elif ident < 96 and dict_ident < 96 and spl_ins_phased < dict_spl_ins_phased:
-									pr = 1
-								elif spl_ins > dict_spl_ins: # based on score
-									del trip[keys]
-								elif spl_ins < dict_spl_ins: 
-									pr = 1
-							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.45: # if high-depth, prioritize phasing over score
-								del trip[keys]
-							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.45: # if high-depth, prioritize phasing over score
-								del trip[keys]
-							elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased: # different scores, keep highest score
-								del trip[keys]
-							elif spl_ins > dict_spl_ins: # different scores, keep highest score
-								del trip[keys]
-							else:
-								pr = 1
+				### d1) check if they share >75% of the readNames (ie one with mostly the same insertSize reads), if so, keep only the one with higher score if score is 2x (IGHV1-8 exception)
+				filteredByReadNames = False
+				keyToUse = ""
+				readNamesList = line[24].split(",")
+				for keys in trip:
+					readNamesListTrip = trip[keys][23].split(",")
+					numReadsInCommon = sum([1 if rNameIt in readNamesListTrip else 0 for rNameIt in readNamesList])
+					fracReadsShared = numReadsInCommon / min(len(readNamesList), len(readNamesListTrip))
+					if fracReadsShared > 0.75:
+						filteredByReadNames = True
+						keyToUse = keys
+						break
+				if filteredByReadNames:
+					keys = keyToUse
+					dict_spl_ins = trip[keys][21]
+					dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
+					ts2 = trip[keys][20].split(" - ") # annotated values based on IgBlast
+					ts2 = [g.split("*")[0] for g in ts2] # remove alleles and keep first gene 
+					# IGHV1-8 gene filtering (not well annotated in hg19/hg38)
+					if "IGHV1-8" in nw2 and not "IGHV1-8" in ts2 and phasing_pct >= dict_phasing_pct and spl_ins >= dict_spl_ins*0.25:
+						del trip[keys]
+					# different scores, keep highest score
+					elif spl_ins > dict_spl_ins*2:
+						del trip[keys]
+					elif spl_ins*2 < dict_spl_ins:
+						pr = 1
+					else:
+						filteredByReadNames = False
 				
-				else:
-					### d2) check if exactly the same VDJ is already annotated...
-					if line[0] in trip:
-						dict_spl_ins = trip[line[0]][21]
-						dict_mq = float(trip[line[0]][22].split(" ")[0].replace("NA", "0"))
-						dict_cdr3 = trip[line[0]][19]
-						dict_phasing_pct = 0 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split("/")[0])/float(trip[line[0]][14].split(" ")[0].split("/")[1])*100 if trip[line[0]][14].split(" ")[0].split("/")[1] != "0" else 100
-						dict_muts_low_confidence = 300 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split(" - ")[1])
-
-						if line[20] != "NA" and dict_cdr3 == "NA": # if the same VDJ, keep the one with info in CDR3 aa seq
-							del trip[line[0]]
-						elif line[20] == "NA" and dict_cdr3 != "NA":
-							pr = 1
-						elif spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25: # if similar scores
-							if phasing_pct > dict_phasing_pct: # based on phasing
-								del trip[line[0]]
-							elif dict_phasing_pct > phasing_pct:
-								pr = 1
-							elif muts_low_confidence < 3 and dict_muts_low_confidence > 3 and muts_low_confidence < dict_muts_low_confidence*2: # based on number of potential mutations not correctly phased, keep lowest number
-								del trip[line[0]]
-							elif muts_low_confidence > 3 and dict_muts_low_confidence < 3 and muts_low_confidence > dict_muts_low_confidence*2:
-								pr = 1
-							elif mq > 50 and dict_mq < 10: # based on map qual
-								del trip[line[0]]
-							elif mq < 10 and dict_mq > 50:
-								pr = 1
-							elif spl_ins > dict_spl_ins: # based on score
-								del trip[line[0]]
-							elif spl_ins < dict_spl_ins:
-								pr = 1
-						elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.45: # if high-depth, prioritize phasing over score
-							del trip[line[0]]
-						elif spl_ins > dict_spl_ins: # different scores, keep highest score
-							del trip[line[0]]
-						else:
-							pr = 1
+				if not filteredByReadNames:
+					### d2) check if same CDR3 is already annotated...	
+					if line[20] != "NA" and line[20] in [trip[keys][19] for keys in trip]:
+						for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
+							if trip[keys][18] == "Partial rearrangement": continue
+							dict_spl_ins = trip[keys][21]
+							dict_spl_ins_phased = len(trip[keys][23].split(","))
+							dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
+							dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
+							dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
+							dict_ident = 100 if trip[keys][16] == "NA" else float(trip[keys][16])
+							ts2 = trip[keys][20].split(" - ") # annotated values based on IgBlast
+							ts2 = [g.split("*")[0] for g in ts2] # remove alleles and keep first gene 
+							if line[20] == trip[keys][19]:
+								# IGHV1-8 gene filtering (not well annotated in hg19/hg38)
+								if "IGHV1-8" in nw2 and not "IGHV1-8" in ts2 and phasing_pct >= dict_phasing_pct and spl_ins >= dict_spl_ins*0.25:
+									del trip[keys]
+								# other genes
+								elif (spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25) or (ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.75 and spl_ins_phased <= dict_spl_ins_phased*1.25): # if similar scores
+									if phasing_pct > dict_phasing_pct: # based on phasing
+										del trip[keys]
+									elif dict_phasing_pct > phasing_pct:
+										pr = 1
+									elif muts_low_confidence < 3 and dict_muts_low_confidence > 3 and muts_low_confidence < dict_muts_low_confidence*2: # based on number of potential mutations not correctly phased, keep lowest number
+										del trip[keys]
+									elif muts_low_confidence > 3 and dict_muts_low_confidence < 3 and muts_low_confidence > dict_muts_low_confidence*2:
+										pr = 1
+									elif mq > 50 and dict_mq < 10: # based on map qual
+										del trip[keys]
+									elif mq < 10 and dict_mq > 50:
+										pr = 1
+									elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased:
+										del trip[keys]
+									elif ident < 96 and dict_ident < 96 and spl_ins_phased < dict_spl_ins_phased:
+										pr = 1
+									elif spl_ins > dict_spl_ins: # different scores, keep highest score
+										del trip[keys]
+									else:
+										pr = 1
+								elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and ident < 96 and dict_ident < 96 and spl_ins_phased >= dict_spl_ins_phased*0.45: # if high-depth, prioritize phasing over score
+									del trip[keys]
+								elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.45: # if high-depth, prioritize phasing over score
+									del trip[keys]
+								elif ident < 96 and dict_ident < 96 and spl_ins_phased > dict_spl_ins_phased: # different scores, keep highest score
+									del trip[keys]
+								elif spl_ins > dict_spl_ins: # different scores, keep highest score
+									del trip[keys]
+								else:
+									pr = 1
 					
-					### d3) check if a "not exact VDJ" is already annotated...
-					for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
-						if trip[keys][18] == "Partial rearrangement": continue
-						ts = keys.split(" - ") # annotated values
-						nw = line[0].split(" - ") # new value
-						common = set(ts).intersection(nw) # intersection between values in dict and value analysed
-						ts2 = trip[keys][20].split(" - ") # annotated values based on IgBlast
-						ts2 = [g.split("*")[0] for g in ts2] # remove alleles and keep first gene 
-						nw2 = line[21].split(" - ") # annotated values based on IgBlast
-						nw2 = [g.split("*")[0] for g in nw2] # remove alleles and keep first gene 
-						common2 = set(ts2).intersection(nw2) # intersection between values in dict and value analysed
-						dict_spl_ins = trip[keys][21]
-						dict_spl_ins_phased = len(trip[keys][23].split(","))
-						dict_original_spl_ins = trip[keys][1]+trip[keys][2]
-						dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
-						dict_cdr3 = trip[keys][19]
-						dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
-						dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
-						#### Specific conditions after manual review of multiple analyses (especially for capture, high coverage data):
-						##### A: 2 genes in common based on breaks + CDR3 inside
-						##### B: 2 genes in common + highly similary CDR3s
-						##### C: same IGHJ breaks + (CDR3 inside or highly similary CDR3s)
-						##### D: same J-V, one without split-reads
-						##### E: 2 genes in common -also considering IgBlast annotation- and one with CDR3 = NA
-						##### F: same as D but considering V-gene family in the comparison instead of V-gene
-						##### G: same J-V, and same V seq or V seq within
-						##### H: same J-V, one with 5x spl_ins
-						##### I: 2 genes in common, one with 2x spl_ins_phased and 2x original_spl_ins
-						condiA = len(common) == 2 and (line[20] in dict_cdr3 or dict_cdr3 in line[20])
-						condiB = (len(common) == 2 or len(common2) >= 2) and abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.8
-						condiC = nw[0].startswith("IGHJ") and line[4] == trip[keys][3] and line[5] == trip[keys][4] and ((line[20] in dict_cdr3 or dict_cdr3 in line[20]) or (abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.9))
-						condiD = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
-						condiE = (len(common) == 2 or len(common2) >= 2) and (line[20] == "NA" or dict_cdr3 == "NA")
-						condiF = ((nw[0] == ts[0] and nw[-1].split("-")[0] == ts[-1].split("-")[0]) or (nw2[0] == ts2[0] and nw2[-1].split("-")[0] == ts2[-1].split("-")[0])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
-						condiG = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (line[13] in trip[keys][12] or trip[keys][12] in line[13])
-						condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (spl_ins*5 < dict_spl_ins or dict_spl_ins*5 < spl_ins)
-						condiI = (len(common) == 2 or len(common2) >= 2) and ( (dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins) or (spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins) )
-						if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI:
-							if dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins: # check if one has more reads (including phased reads) and more initially mapped split/insert reads
-								del trip[keys]
-							elif spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins:
-								pr = 1
-							elif line[20] != "NA" and dict_cdr3 == "NA": # keep the one with info in CDR3 aa seq
-								del trip[keys]
+					else:
+						### d3) check if exactly the same VDJ is already annotated...
+						if line[0] in trip:
+							dict_spl_ins = trip[line[0]][21]
+							dict_mq = float(trip[line[0]][22].split(" ")[0].replace("NA", "0"))
+							dict_cdr3 = trip[line[0]][19]
+							dict_phasing_pct = 0 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split("/")[0])/float(trip[line[0]][14].split(" ")[0].split("/")[1])*100 if trip[line[0]][14].split(" ")[0].split("/")[1] != "0" else 100
+							dict_muts_low_confidence = 300 if trip[line[0]][14] == "NA" else float(trip[line[0]][14].split(" - ")[1])
+							if line[20] != "NA" and dict_cdr3 == "NA": # if the same VDJ, keep the one with info in CDR3 aa seq
+								del trip[line[0]]
 							elif line[20] == "NA" and dict_cdr3 != "NA":
 								pr = 1
-							elif len(ts) > len(nw) and len(ts2) > len(nw2): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
-								pr = 1
-							elif len(ts) < len(nw) and len(ts2) < len(nw2): # if the other way around... keep the new one
-								del trip[keys]
-							elif line[5] != trip[keys][4] and line[7] != trip[keys][6]: # if different breakpoints, keep both if similar score
-								if spl_ins*0.5 > dict_spl_ins: 
-									del trip[keys]
-								elif spl_ins*1.5 < dict_spl_ins:
-									pr = 1
-								else:
-									pr = 0
 							elif spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25: # if similar scores
 								if phasing_pct > dict_phasing_pct: # based on phasing
-									del trip[keys]
+									del trip[line[0]]
 								elif dict_phasing_pct > phasing_pct:
 									pr = 1
 								elif muts_low_confidence < 3 and dict_muts_low_confidence > 3 and muts_low_confidence < dict_muts_low_confidence*2: # based on number of potential mutations not correctly phased, keep lowest number
-									del trip[keys]
+									del trip[line[0]]
 								elif muts_low_confidence > 3 and dict_muts_low_confidence < 3 and muts_low_confidence > dict_muts_low_confidence*2:
 									pr = 1
 								elif mq > 50 and dict_mq < 10: # based on map qual
-									del trip[keys]
+									del trip[line[0]]
 								elif mq < 10 and dict_mq > 50:
 									pr = 1
-								elif line[5] != trip[keys][4] or line[7] != trip[keys][6]: # if similar score, same phasing, similar mq, and at least one different breakpoint, keep both 
-									pr = 0
-								elif spl_ins > dict_spl_ins: # based on score
-									del trip[keys]
-								elif spl_ins < dict_spl_ins:
+								elif spl_ins > dict_spl_ins: # different scores, keep highest score
+									del trip[line[0]]
+								else:
 									pr = 1
-							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.65: # if high-depth, prioritize phasing over score
-								del trip[keys]
-							elif spl_ins > dict_spl_ins: # just by different score
-								del trip[keys]					
-							elif spl_ins < dict_spl_ins:
-									pr = 1
+							elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.45: # if high-depth, prioritize phasing over score
+								del trip[line[0]]
+							elif spl_ins > dict_spl_ins: # different scores, keep highest score
+								del trip[line[0]]
+							else:
+								pr = 1
 						
-						#### 1 gene in common (IGLV/IGKV/TRAV/TRGV genes)
-						elif len(common) == 1 and ( nw[1].startswith("IGLV") or nw[1].replace("D", "").startswith("IGKV") or nw[1].startswith("TRAV") or nw[1].startswith("TRGV") ):
-							if nw[1].replace("D", "") == ts[1].replace("D", "") and ts[0] != "IGKKde":
-								if spl_ins > dict_spl_ins:
-									del trip[keys]
-								elif spl_ins < dict_spl_ins:
-									pr = 1
-				
-				### d4) add if needed
+						else: # force no exact match to enter here...
+							### d4) check if a "not exact VDJ" is already annotated...
+							for keys in [k for k in trip]: # make list of keys to avoid dictionary changed size during iteration
+								if trip[keys][18] == "Partial rearrangement": continue
+								ts = keys.split(" - ") # annotated values
+								nw = line[0].split(" - ") # new value
+								common = set(ts).intersection(nw) # intersection between values in dict and value analysed
+								ts2 = trip[keys][20].split(" - ") # annotated values based on IgBlast
+								ts2 = [g.split("*")[0] for g in ts2] # remove alleles and keep first gene 
+								common2 = set(ts2).intersection(nw2) # intersection between values in dict and value analysed
+								dict_spl_ins = trip[keys][21]
+								dict_spl_ins_phased = len(trip[keys][23].split(","))
+								dict_original_spl_ins = trip[keys][1]+trip[keys][2]
+								dict_mq = float(trip[keys][22].split(" ")[0].replace("NA", "0"))
+								dict_cdr3 = trip[keys][19]
+								dict_phasing_pct = 0 if trip[keys][14] == "NA" else float(trip[keys][14].split("/")[0])/float(trip[keys][14].split(" ")[0].split("/")[1])*100 if trip[keys][14].split(" ")[0].split("/")[1] != "0" else 100
+								dict_muts_low_confidence = 300 if trip[keys][14] == "NA" else float(trip[keys][14].split(" - ")[1])
+								#### Specific conditions after manual review of multiple analyses:
+								##### A: 2 genes in common based on breaks + CDR3 inside
+								##### B: 2 genes in common + highly similary CDR3s
+								##### C: same IGHJ breaks + (CDR3 inside or highly similary CDR3s)
+								##### D: same J-V, one without split-reads
+								##### E: 2 genes in common -also considering IgBlast annotation- and one with CDR3 = NA
+								##### F: same as D but considering V-gene family in the comparison instead of V-gene
+								##### G: 2 genes in common -also considering IgBlast annotation- and same V seq or V seq within or V seq same length and similar
+								##### H: 2 genes in common -also considering IgBlast annotation-, one with 3x spl_ins
+								##### I: 2 genes in common, one with 2x spl_ins_phased and 2x original_spl_ins
+								condiA = len(common) == 2 and line[20] != "NA" and dict_cdr3 != "NA" and (line[20] in dict_cdr3 or dict_cdr3 in line[20])
+								condiB = (len(common) == 2 or len(common2) >= 2) and line[20] != "NA" and dict_cdr3 != "NA" and abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.8
+								condiC = nw[0].startswith("IGHJ") and line[4] == trip[keys][3] and line[5] == trip[keys][4] and line[20] != "NA" and dict_cdr3 != "NA" and ((line[20] in dict_cdr3 or dict_cdr3 in line[20]) or (abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.9))
+								condiD = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
+								condiE = (len(common) == 2 or len(common2) >= 2) and (line[20] == "NA" or dict_cdr3 == "NA")
+								condiF = ((nw[0] == ts[0] and nw[-1].split("-")[0] == ts[-1].split("-")[0]) or (nw2[0] == ts2[0] and nw2[-1].split("-")[0] == ts2[-1].split("-")[0])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
+								condiG = (len(common) == 2 or len(common2) >= 2) and (line[13] in trip[keys][12] or trip[keys][12] in line[13] or CustomSequenceMatcher(line[13], trip[keys][12]) > collapseSequencesSimilarity)
+								condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (dict_spl_ins*3 < spl_ins or spl_ins*3 < dict_spl_ins)
+								condiI = (len(common) == 2 or len(common2) >= 2) and ( (dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins) or (spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins))
+								if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI:						
+									if dict_spl_ins*3 < spl_ins: # check if one has more split/insert reads
+										del trip[keys]
+									elif spl_ins*3 < dict_spl_ins:
+										pr = 1
+									elif dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins: # check if one has more reads (including phased reads) and more initially mapped split/insert reads
+										del trip[keys]
+									elif spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins:
+										pr = 1
+									elif line[20] != "NA" and dict_cdr3 == "NA": # keep the one with info in CDR3 aa seq
+										del trip[keys]
+									elif line[20] == "NA" and dict_cdr3 != "NA":
+										pr = 1
+									elif len(ts) > len(nw) and len(ts2) > len(nw2): # if the one annotated has len=3 (VDJ) and the new one 2 (VJ), keep the one annotated
+										pr = 1
+									elif len(ts) < len(nw) and len(ts2) < len(nw2): # if the other way around... keep the new one
+										del trip[keys]
+									elif (line[13] in trip[keys][12] or trip[keys][12] in line[13]) and dict_spl_ins < spl_ins: # if same V-seq, keep only the one with higher score
+										del trip[keys]
+									elif (line[13] in trip[keys][12] or trip[keys][12] in line[13]) and spl_ins < dict_spl_ins:
+										pr = 1
+									elif line[5] != trip[keys][4] and line[7] != trip[keys][6]: # if different breakpoints, keep both if similar score
+										if spl_ins*0.5 > dict_spl_ins:
+											del trip[keys]
+										elif spl_ins*1.5 < dict_spl_ins:
+											pr = 1
+									elif spl_ins >= dict_spl_ins*0.75 and spl_ins <= dict_spl_ins*1.25: # if similar scores
+										if phasing_pct > dict_phasing_pct: # based on phasing
+											del trip[keys]
+										elif dict_phasing_pct > phasing_pct:
+											pr = 1
+										elif muts_low_confidence < 3 and dict_muts_low_confidence > 3 and muts_low_confidence < dict_muts_low_confidence*2: # based on number of potential mutations not correctly phased, keep lowest number
+											del trip[keys]
+										elif muts_low_confidence > 3 and dict_muts_low_confidence < 3 and muts_low_confidence > dict_muts_low_confidence*2:
+											pr = 1
+										elif mq > 50 and dict_mq < 10: # based on map qual
+											del trip[keys]
+										elif mq < 10 and dict_mq > 50:
+											pr = 1
+										elif line[5] != trip[keys][4] or line[7] != trip[keys][6]: # if similar score, same phasing, similar mq, and at least one different breakpoint, keep both 
+											pr = 0
+										elif spl_ins > dict_spl_ins: # different scores, keep highest score
+											del trip[keys]
+										else:
+											pr = 1
+									elif seqDepth == "high" and phasing_pct == 100 and phasing_pct > dict_phasing_pct and spl_ins >= dict_spl_ins*0.65: # if high-depth, prioritize phasing over score
+										del trip[keys]
+									elif spl_ins > dict_spl_ins: # different scores, keep highest score
+										del trip[keys]					
+									else:
+										pr = 1
+									break # force only one match in condis
+								
+								#### 1 gene in common (IGLV/IGKV/TRAV/TRGV genes)
+								elif len(common) == 1 and ( nw[1].startswith("IGLV") or nw[1].replace("D", "").startswith("IGKV") or nw[1].startswith("TRAV") or nw[1].startswith("TRGV") ):
+									if nw[1].replace("D", "") == ts[1].replace("D", "") and ts[0] != "IGKKde":
+										if spl_ins > dict_spl_ins:
+											del trip[keys]
+										else:
+											pr = 1
+										break # force only one match
+					
+				### d5) add if needed
 				if pr == 0:
 					trip[line[0]] = line[1:]
 	
@@ -3086,7 +3345,7 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 			elif reportOnlyProductive == "oof" and line[18] == "Unproductive (stop codons)":
 				prodTrip[ky] = line
 		return(prodTrip)
-	
+
 def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, bamT, bamN, pathToSamtools, tumorPurity, seq, scoreCutoffCSR, errLogMpileup):
 	class_switch = []
 	class_switch_filt = []
@@ -3253,7 +3512,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		chrom7_TRG = [38230024, 38378055] # TRG region
 
 	chroms = [chrom+str(i) for i in range(1,22)]+[chrom+"X", chrom+"Y", "="] # chroms considered ("=" to consider deletions/inversions/gains within the same chromosome)
-
+	
 	samT = wkDir+"/tmp/"+bamT.split("/")[-1].replace(".bam", ".sam")
 	comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamT+" "+coordsToSubset+" > "+samT
 	subprocess.call(comms, shell=True)
@@ -3504,7 +3763,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				if item[8] >= mntonco:
 					if key2 in translocationsFiltered[key1]: translocationsFiltered[key1][key2].append(item)
 					else: translocationsFiltered[key1][key2] = [ item ]
-					
+	
 	# 3. Annotate in normal
 	if bamN is not None and pairedMode == "paired":
 		readNamesUsedInPoN = [] # to avoid counting R1 and R2 twice
@@ -3839,7 +4098,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		
 	return(translocationsALL, translocationsPASS)
 
-def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, reportReadNames, errLogMpileup):
+def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup):
 	
 	if genomeVersion == "hg19":	
 		bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_JgenesForPurity.bed"
@@ -3853,9 +4112,10 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 	CovReductionAll = list()
 	CovReductionSelected = list()
 	puritySampleList = list()
-	purityCutoff = 0.15 if bamN is not None and seqDepth == "high" else 0.20 if seqDepth == "high" else 0.25
-	covReductionCutoff = 0.15 if bamN is not None and seqDepth == "high" else 0.25 if seqDepth == "high" else 0.3
+	purityCutoff = 0.15 if bamN is not None and seqDepth == "high" else 0.20 if seqDepth == "high" or bamN is not None else 0.25
+	covReductionCutoff = 0.15 if bamN is not None and seqDepth == "high" else 0.25 if seqDepth == "high" or bamN is not None else 0.3
 	windowDeletedBreak = 50 if seq == "wgs" else 10
+	listRegionsPlot = [] # list of list with regions to plot (chr, start, end, GENE, gene-name)
 	
 	# Iterate each locus analyzed
 	for GENE in listGenes:
@@ -3936,6 +4196,18 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 				regionDeletedGene = chr+":"+posStart+"-"+str(int(posEnd) - adjustPos) if strand == "-" else chr+":"+str(int(posStart) + adjustPos)+"-"+posEnd
 				windowDeletedGene = int(posEnd) - int(posStart) - adjustPos + 1
 				
+				# region to store for ploting
+				if not gene.endswith("_DEL"):
+					if strand == "-":
+						pos1 = int(bList[1])
+						pos2 = int(bList[2])+10+windowDeletedBreak-1
+					else:
+						pos1 = int(bList[1])-10-windowDeletedBreak+1
+						pos2 = int(bList[2])
+					locusForPlot = "TRA_TRD" if GENE in ["TRA", "TRD"] else GENE
+					listRegionsPlot.append([chr, pos1, pos2, locusForPlot, gene])
+
+				# store or calculate coverage
 				if jCount == 1:
 					geneRearranged = gene
 					posStartGeneRearranged = posStart
@@ -4019,13 +4291,20 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 
 					# Select and summarize covReduction
 					if ( covReductionBreak > covReductionCutoff and covReductionGene > covReductionCutoff and flagCov == "PASS") or countGeneSpecificRearrangement > 0:
-						covReduction = round(mean([covReductionBreak, covReductionGene]), 3)
+						if covReductionBreak >= 0.9 and covReductionGene <= 0.7:
+							covReduction = round(covReductionBreak, 3)
+						elif covReductionGene >= 0.9 and covReductionBreak <= 0.7:
+							covReduction = round(covReductionGene, 3)
+						elif covReductionBreak >= 0.5 and covReductionGene <= 0.1:
+							covReduction = round(covReductionBreak, 3)
+						else:
+							covReduction = round(mean([covReductionBreak, covReductionGene]), 3)
 					else:
 						covReduction = min([covReductionBreak, covReductionGene])
 
 					# Adjust countGeneRearrangement and countGeneSpecificRearrangement if covReduction of biallelic rearrangement
-					if covReduction > 0.75 and countGeneRearrangement < 2 and flagCov == "PASS":
-						while countGeneRearrangement < 2: 
+					if covReduction >= 0.80 and countGeneRearrangement < 2 and flagCov == "PASS":
+						while countGeneRearrangement < 2:
 							countGeneRearrangement += 1
 							countGeneSpecificRearrangement += 1
 
@@ -4061,7 +4340,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					regionDeletedBreak = regionDeleted_1
 
 					# check locusCompleted
-					if (flagCov == "PASS" and covReduction > 0.75) or countGeneRearrangement >= 2:
+					if countGeneRearrangement >= 2:
 						locusCompleted = "yes"
 
 		B.close()
@@ -4069,6 +4348,8 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 		if purityGeneRearrangement:
 			cutoff = sorted(purityGeneRearrangement)[-2] if len(purityGeneRearrangement) >= 2 else max(purityGeneRearrangement)
 			puritySpecificRearrangement = max(purityGeneRearrangement)
+			if seqDepth == "high" and puritySpecificRearrangement > 0.9 and cutoff < 0.45: cutoff = puritySpecificRearrangement
+			if seqDepth == "int" and puritySpecificRearrangement > 0.85 and cutoff < 0.15: cutoff = puritySpecificRearrangement
 			for indx in range(0, len(purityGeneRearrangement), 1):
 				if purityGeneRearrangement[indx] >= cutoff:
 					CovReductionSelected.append(CovReductionSelectedRearrangement[indx])
@@ -4121,10 +4402,12 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					igkPositionRearrangements = kdes
 					regionNormal = chrom+"2:"+str(IGKKdePos - 15 - windowDeletedBreak)+"-"+str(IGKKdePos - 15 - 1)
 					regionDeleted = chrom+"2:"+str(IGKKdePos + 15 + 1)+"-"+str(IGKKdePos + 15 + windowDeletedBreak)
-				elif igkRegion == "IGKRSS": 
+					listRegionsPlot.append([chrom+"2", IGKKdePos - 15 - windowDeletedBreak, IGKKdePos + 15 + windowDeletedBreak, "IGKKde", "IGKKde"])
+				elif igkRegion == "IGKRSS":
 					igkPositionRearrangements = rsss
 					regionNormal = chrom+"2:"+str(IGKRSSPos + 15 + 1)+"-"+str(IGKRSSPos + 15 + windowDeletedBreak)
 					regionDeleted = chrom+"2:"+str(IGKRSSPos - 15 - windowDeletedBreak)+"-"+str(IGKRSSPos - 15 - 1)
+					listRegionsPlot.append([chrom+"2", IGKRSSPos - 15 - windowDeletedBreak, IGKRSSPos + 15 + windowDeletedBreak, "IGKRSS", "IGKRSS"])
 
 				# Get mean depths tumor windowDeletedBreak
 				comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -r "+regionNormal+" "+bamT+" 2>> "+errLogMpileup+" | cut -f 4"
@@ -4164,7 +4447,7 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if covReduction < 0: covReduction = 0
 
 					# Adjust kdes/rsss if covReduction of biallelic rearrangement
-					if covReduction > 0.75 and igkPositionRearrangements < 2: igkPositionRearrangements = 2
+					if covReduction > 0.80 and igkPositionRearrangements < 2: igkPositionRearrangements = 2
 
 					# Calculate purity
 					if igkPositionRearrangements < 2: purity = covReduction * 2
@@ -4173,11 +4456,11 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 					if purity < 0: purity = 0
 
 					# Adjust, if necessary, purity if only one IGKKde-IGKRSS identified but it looks potentially biallelic considering also all other purities found
-					if purity > 0.75 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
+					if purity > 0.80 and kdes == 1 and rsss == 1 and kde_rss_s == 1 and all(purs < purity*0.7 for purs in puritySampleList): purity = round(purity/2, 3)
 
 					# Adjust flag if found rearranged but with no covReduction
 					if purity < 0.08: flagCov = "NoDepthReduction"
-
+					
 					# Store info
 					CovReductionGeneInfo = "\t".join([igkRegion, igkRegion, regionNormal, regionDeleted, "NA", str(int(depthNormal)), str(int(depthDeleted)), "NA", str(covReduction), "NA", str(covReduction), str(igkPositionRearrangements), str(igkPositionRearrangements), str(purity), flagCov])
 					if flagCov == "PASS":
@@ -4187,7 +4470,8 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 						CovReductionAll.append(CovReductionGeneInfo)
 
 	# Print output...
-	if len(puritySampleList) == 0: 
+	if len(puritySampleList) == 0:
+		medPurity = "<"+str(purityCutoff)
 		puritySample = "<"+str(purityCutoff)+" (NA)"
 	else: 
 		puritySampleList.sort()
@@ -4199,11 +4483,128 @@ def getPurity(seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFil
 	with open(filterOutputFile, 'a') as file: file.write("Purity\t"+str(puritySample)+"\t"+"\t".join(["NA"]*(10 if reportReadNames == "no" else 11))+"\n")
 	
 	## ...purity file
+	locusToPlot = []
+	locusCounted = []
+	genesCounted = [] 
 	O = open(filterOutputFile.replace("_filtered.tsv", "_purity.tsv"), "w")
 	O.write("Analysis\tJ_gene\tNormal_region\tDeleted_region_break\tDeleted_region_next_gene\tDepth_normal_region\tDepth_deleted_region_break\tDepth_deleted_region_next_gene\tDepth_reduction_break\tDepth_reduction_next_gene\tDepth_reduction\tNumber_of_times_J_gene_specific_rearrangments\tNumber_of_times_J_gene_rearranged\tPurity\tFlag\tSelected\n")
 	for eToPrint in CovReductionSelected:
 		O.write(eToPrint+"\tYes\n")
+		locusToPlot.append(eToPrint.split("\t")[0])
+		locusCounted.append(eToPrint.split("\t")[0])
+		genesCounted.extend([eToPrint.split("\t")[1]] * (int(eToPrint.split("\t")[12]) if int(eToPrint.split("\t")[12]) > 0 else 1))
 	for eToPrint in CovReductionAll:
 		if eToPrint not in CovReductionSelected:
 			O.write(eToPrint+"\tNo\n")
+			if eToPrint.split("\t")[-1] != "LowCoverage":
+				locusToPlot.append(eToPrint.split("\t")[0])
 	O.close()
+	locusToPlot = list(set(locusToPlot))
+
+	## ...plot coverage along J genes
+	if plotPurityCoverage == "yes":
+		
+		# prepare DataFrame and bed file for mpileup
+		chroms = []
+		positions = []
+		locus = []
+		gene = []
+		bedForMpileup = wkDir+"/tmp/bedFileForMpileup.bed"
+		BEDFORMPILEUP = open(bedForMpileup, "w")
+		for regionsForMpileup in listRegionsPlot:
+			if regionsForMpileup[3] in locusToPlot:
+				# for bed file
+				BEDFORMPILEUP.write(str(regionsForMpileup[0])+"\t"+str(int(regionsForMpileup[1])-1)+"\t"+str(regionsForMpileup[2])+"\n")
+				# for dataframe
+				lengthRegion = int(regionsForMpileup[2])-int(regionsForMpileup[1])+1
+				chroms.extend([str(regionsForMpileup[0])] * lengthRegion)
+				positions.extend(list(range(int(regionsForMpileup[1]), int(regionsForMpileup[2])+1)))
+				locus.extend([str(regionsForMpileup[3])] * lengthRegion)
+				gene.extend([str(regionsForMpileup[4])] * lengthRegion)
+		BEDFORMPILEUP.close()
+		covDF = pd.DataFrame({ "chrom" : chroms, "position" : positions, "locus" : locus, "gene" : gene })
+
+		# get coverage tumor
+		covCountsTumor = wkDir+"/tmp/covCountsTumor.tsv"
+		comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -l "+bedForMpileup+" "+bamT+" > "+covCountsTumor+" 2>> "+errLogMpileup
+		subprocess.call(comms, shell=True)
+		COV = open(covCountsTumor, "r")
+		chroms = []
+		positions = []
+		cov = []
+		for covLine in COV:
+			covList = covLine.rstrip("\n").split("\t")
+			chroms.append(str(covList[0]))
+			positions.append(int(covList[1]))
+			cov.append(int(covList[3]))
+		COV.close()
+		tumorCV = pd.DataFrame({"chrom" : chroms, "position" : positions, "tumorCov" : cov})
+		covDF = pd.merge(covDF, tumorCV, on=['chrom', 'position'], how='left')
+		covDF["tumorCov"] = covDF["tumorCov"].fillna(0)
+
+		# get coverage normal
+		if bamN is not None:
+			covCountsNormal = wkDir+"/tmp/covCountsNormal.tsv"
+			comms = pathToSamtools+"samtools mpileup -d 0 -a -A -B -q "+mapq+" -l "+bedForMpileup+" "+bamN+" > "+covCountsNormal+" 2>> "+errLogMpileup
+			subprocess.call(comms, shell=True)
+			COV = open(covCountsNormal, "r")
+			chroms = []
+			positions = []
+			cov = []
+			for covLine in COV:
+				covList = covLine.rstrip("\n").split("\t")
+				chroms.append(str(covList[0]))
+				positions.append(int(covList[1]))
+				cov.append(int(covList[3]))
+			COV.close()
+			normalCV = pd.DataFrame({"chrom" : chroms, "position" : positions, "normalCov" : cov})
+			covDF = pd.merge(covDF, normalCV, on=['chrom', 'position'], how='left')
+			covDF["normalCov"] = covDF["normalCov"].fillna(1)
+
+		# normalize coverages
+		covDF["tumorCovNormalized"] = covDF["tumorCov"] / covDF["tumorCov"].mean()
+		if bamN is not None:
+			covDF["normalCovNormalized"] = covDF["normalCov"] / covDF["normalCov"].mean()
+			covDF["tumorCovNormalized"] = covDF["tumorCovNormalized"] / covDF["normalCovNormalized"]
+		
+		# re-name genes to display number of breaks counted
+		for gene in covDF["gene"].unique():
+			newGeneLabel = gene+" (n="+str(genesCounted.count(gene))+")"
+			covDF.loc[covDF["gene"] == gene, "gene"] = newGeneLabel
+		
+		# plot
+		covDF["gene"] = covDF["gene"].astype(str)
+		covDF["locus"] = covDF["locus"].astype(str)
+		with PdfPages(bamT.replace(".bam", "_output_purity_RawTumorCoverage.pdf")) as pdf:
+			for locus in covDF["locus"].unique():
+				covLocus = covDF[covDF["locus"] == locus]
+				covLocus = covLocus.sort_values(by="position", ascending=True)
+				nCol = covLocus["gene"].nunique() if covLocus["gene"].nunique() < 13 else 13
+				nRow = int(covLocus["gene"].nunique()/nCol)
+				g = sns.FacetGrid(covLocus, col="gene", sharex=False, margin_titles=True, col_wrap=nCol)
+				g.map_dataframe(sns.lineplot, x="position", y="tumorCov", color="#32B39E")
+				for ax in g.axes.flat: ax.set_ylim(bottom=0)
+				g.set_axis_labels("Position", "Raw tumor coverage")
+				g.set_titles(col_template="{col_name}")
+				g.figure.subplots_adjust(top=0.85 if nRow == 1 else 0.95)
+				g.figure.suptitle("Purity: "+str(medPurity)+" | Locus: "+locus+" (n= "+str(locusCounted.count(locus))+")", fontsize=11)
+				g.figure.set_size_inches(3 * nCol, 4 * nRow)
+				pdf.savefig(g.figure)
+				plt.close()
+		
+		with PdfPages(bamT.replace(".bam", "_output_purity_NormalizedTumorCoverage.pdf")) as pdf:
+			for locus in covDF["locus"].unique():
+				covLocus = covDF[covDF["locus"] == locus]
+				covLocus = covLocus.sort_values(by="position", ascending=True)
+				nCol = covLocus["gene"].nunique() if covLocus["gene"].nunique() < 13 else 13
+				nRow = int(covLocus["gene"].nunique()/nCol)
+				g = sns.FacetGrid(covLocus, col="gene", sharex=False, margin_titles=True, col_wrap=nCol)
+				g.map_dataframe(sns.lineplot, x="position", y="tumorCovNormalized", color="#32B39E")
+				for ax in g.axes.flat: ax.set_ylim(bottom=0)
+				g.set_axis_labels("Position", "Norm. tumor coverage")
+				g.set_titles(col_template="{col_name}")
+				g.figure.subplots_adjust(top=0.85 if nRow == 1 else 0.95)
+				g.figure.suptitle("Purity: "+str(medPurity)+" | Locus: "+locus+" (n= "+str(locusCounted.count(locus))+")", fontsize=11)
+				g.figure.set_size_inches(3 * nCol, 4 * nRow)
+				pdf.savefig(g.figure)
+				plt.close()
