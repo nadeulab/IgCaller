@@ -65,12 +65,12 @@ def flagToCustomBinary(flag):
 	binary = ("0"*(12-len(binary)))+binary
 	return(binary[::-1])
 
-def CustomSequenceMatcher(seqA, seqB):
+def CustomSequenceMatcher(seqA, seqB, seqType):
 	matches = 0
 	total = 0
-	if len(seqA) == len(seqB):
+	if len(seqA) == len(seqB) and seqA != "NA" and seqB != "NA":
 		for pos in range(len(seqA)):
-			if seqA[pos] == "N" or seqB[pos] == "N": 
+			if seqType == "nt" and seqA[pos] == "N" or seqB[pos] == "N": 
 				continue
 			if seqA[pos] == seqB[pos]: 
 				matches += 1
@@ -2181,7 +2181,8 @@ def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, 
 	# 1. keep rearrangements with split-reads
 	for i in information:
 		spl = int(i[2]) + int(i[6]) + int(i[9])
-		if (seqDepth != "high" and spl > 0) or (seqDepth == "high" and spl > 1):
+		seqDepthHighCutoffSpl = 1 if keepInsertSizeOnlyRearrangements == "no" else 0
+		if (seqDepth != "high" and spl > 0) or (seqDepth == "high" and spl > seqDepthHighCutoffSpl):
 			informationCleanTmp.append(i)
 			if i[0] not in pairsOfGenes: pairsOfGenes.append(i[0])
 			if i[-3] != "": readNamesUsed.extend(i[-3].split(","))
@@ -2257,7 +2258,7 @@ def doCollapseSequences(information, collapseSequencesSimilarity, GENE):
 					continue
 				# check if same length, similar sequence
 				elif len(seq) == len(seqInDict):
-					if CustomSequenceMatcher(seq, seqInDict) > collapseSequencesSimilarity:
+					if CustomSequenceMatcher(seq, seqInDict, "nt") > collapseSequencesSimilarity:
 						foundInDict = "yes"
 						seqInDictToMatch = seqInDict
 						break
@@ -3258,16 +3259,18 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 								##### G: 2 genes in common -also considering IgBlast annotation- and same V seq or V seq within or V seq same length and similar
 								##### H: 2 genes in common -also considering IgBlast annotation-, one with 3x spl_ins
 								##### I: 2 genes in common, one with 2x spl_ins_phased and 2x original_spl_ins
+								##### J: for IGH: same J gene or IGH J break or V break, same V family, and highly similar CDR3
 								condiA = len(common) == 2 and line[20] != "NA" and dict_cdr3 != "NA" and (line[20] in dict_cdr3 or dict_cdr3 in line[20])
 								condiB = (len(common) == 2 or len(common2) >= 2) and line[20] != "NA" and dict_cdr3 != "NA" and abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.8
 								condiC = nw[0].startswith("IGHJ") and line[4] == trip[keys][3] and line[5] == trip[keys][4] and line[20] != "NA" and dict_cdr3 != "NA" and ((line[20] in dict_cdr3 or dict_cdr3 in line[20]) or (abs(len(line[20])-len(dict_cdr3)) <= 1 and SequenceMatcher(None, line[20], dict_cdr3).ratio() > 0.9))
 								condiD = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
 								condiE = (len(common) == 2 or len(common2) >= 2) and (line[20] == "NA" or dict_cdr3 == "NA")
 								condiF = ((nw[0] == ts[0] and nw[-1].split("-")[0] == ts[-1].split("-")[0]) or (nw2[0] == ts2[0] and nw2[-1].split("-")[0] == ts2[-1].split("-")[0])) and ((line[2] == 0 and line[6] == 0 and line[9] == 0) or (trip[keys][1] == 0 and trip[keys][5] == 0 and trip[keys][8] == 0))
-								condiG = (len(common) == 2 or len(common2) >= 2) and (line[13] in trip[keys][12] or trip[keys][12] in line[13] or CustomSequenceMatcher(line[13], trip[keys][12]) > collapseSequencesSimilarity)
+								condiG = (len(common) == 2 or len(common2) >= 2) and (line[13] in trip[keys][12] or trip[keys][12] in line[13] or CustomSequenceMatcher(line[13], trip[keys][12], "nt") > collapseSequencesSimilarity)
 								condiH = ((nw[0] == ts[0] and nw[-1] == ts[-1]) or (nw2[0] == ts2[0] and nw2[-1] == ts2[-1])) and (dict_spl_ins*3 < spl_ins or spl_ins*3 < dict_spl_ins)
 								condiI = (len(common) == 2 or len(common2) >= 2) and ( (dict_spl_ins_phased*2 < spl_ins_phased and dict_original_spl_ins*2 < original_spl_ins) or (spl_ins_phased*2 < dict_spl_ins_phased and original_spl_ins*2 < dict_original_spl_ins))
-								if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI:						
+								condiJ = nw[0].startswith("IGHJ") and (nw[0] == ts[0] or nw2[0] == ts2[0] or line[5] == trip[keys][4] or line[7] == trip[keys][6]) and (nw[-1].split("-")[0] == ts[-1].split("-")[0] or nw2[-1].split("-")[0] == ts2[-1].split("-")[0]) and (line[20] in dict_cdr3 or dict_cdr3 in line[20] or CustomSequenceMatcher(line[20], dict_cdr3, "aa") > 0.6)
+								if condiA or condiB or condiC or condiD or condiE or condiF or condiG or condiH or condiI or condiJ:
 									if dict_spl_ins*3 < spl_ins: # check if one has more split/insert reads
 										del trip[keys]
 									elif spl_ins*3 < dict_spl_ins:
