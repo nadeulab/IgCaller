@@ -181,4 +181,4 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
   * Other minor improvements and edits (virtually) all along the code.
 
-For information about previous releases see the [releases notes](https://github.com/ferrannadeu/IgCaller/Releases_notes.md).
+For information about previous releases see the [releases notes](Releases_notes.md).
