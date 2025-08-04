@@ -172,7 +172,7 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
   * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of IG/TCR rearrangements). See arguments -seq, -pr, -prf, and -prs for further details.
   * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, -scp, -ppc, and -pm, as well as the new output files *output_purity*).
-  * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110)
+  * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110).
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
   * Improved phasing of reads along the V gene (see -prbm).
   * Added some optional arguments to provide more flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
