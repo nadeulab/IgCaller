@@ -95,7 +95,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	vafCutoff (-vaf): VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by a comma, default=0.66,0.1].
 *	vafCutoffNormal (-vafN): VAF cut off to consider a variant in the normal sample [0-1, default=0.20].
 * scoreCutoff (-s): Minimum score supporting a gene rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].
-* scoreCutoffFilter (-sf): Minimum score supporting a gene rearrangement in order to be kept during the analysis [default='empty'; will consider 2 for seqDepth = low, 4 for int, and 6 for high].
+* scoreCutoffFilter (-sf): Minimum score supporting a gene rearrangement in order to be kept during the analysis (intermediate filtering step to speed up the analysis) [default='empty'; will consider 2 for seqDepth = low, 5 for int, and 10 for high].
 * scoreCutoffCSR (-scsr): Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].
 *	reportOnlyProductive (-rop): Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements.
 
