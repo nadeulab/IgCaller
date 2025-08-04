@@ -272,7 +272,7 @@ parser.add_argument('-sf', '--scoreCutoffFilter',
 					action = "store",
 					default = "",
 					type = check_empty_or_integer,
-					help = "Minimum score supporting a gene rearrangement in order to be kept during the analysis [default='empty'; will consider 2 for seqDepth = low, 4 for int, and 6 for high].")
+					help = "Minimum score supporting a gene rearrangement in order to be kept during the analysis (intermediate filtering step to speed up the analysis) [default='empty'; will consider 2 for seqDepth = low, 5 for int, and 10 for high].")
 
 parser.add_argument('-scsr', '--scoreCutoffCSR',
 					dest = "scoreCutoffCSR",
@@ -460,7 +460,8 @@ altDepth = int(options.altDepth) if options.altDepth != "" else 2 if seqDepth ==
 vafCutoff = options.vafCutoff.rstrip(",").split(",")
 vafCutoffNormal = options.vafCutoffNormal
 scoreCutoff = int(options.scoreCutoff) if options.scoreCutoff != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
-scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter != "" else 6 if seqDepth == "high" else 4 if seqDepth == "int" else 2
+scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter != "" else 10 if seqDepth == "high" else 5 if seqDepth == "int" else 2
+if scoreCutoffFilter > scoreCutoff: scoreCutoffFilter = scoreCutoff
 scoreCutoffPurity = int(options.scoreCutoffPurity) if options.scoreCutoffPurity != "" else scoreCutoff
 scoreCutoffCSR = int(options.scoreCutoffCSR) if options.scoreCutoffCSR != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
 reportOnlyProductive = options.reportOnlyProductive
