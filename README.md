@@ -90,9 +90,9 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * shortReportedVseq (-shortV): Make V sequence start at (approx) FR1 [yes/no, default=yes].
 *	mappingQuality (-mq): Mapping quality cut off to filter out reads for IG/TCR V(D)J reconstruction [default=0].
 *	baseQuality (-bq): Base quality cut off for samtools mpileup for mutation analysis [default=13].
-*	minDepth (-d): Depth cut off to consider a position [0-inf, default=2].
-*	minAltDepth (-ad): Alt depth cut off to consider a nucleotide [0-inf, default='empty'; will consider 1 for seqDepth = low/int and 2 for high].
-*	vafCutoff (-vaf): VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by a comma, default=0.66,0.1].
+*	minDepth (-d): Depth cut off to consider a position [0-inf, default=1].
+*	minAltDepth (-ad): Alt depth cut off to consider a nucleotide [0-inf, default=1].
+*	vafCutoff (-vaf): VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by comma, default=0.5,0.1].
 *	vafCutoffNormal (-vafN): VAF cut off to consider a variant in the normal sample [0-1, default=0.20].
 * scoreCutoff (-s): Minimum score supporting a gene rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].
 * scoreCutoffFilter (-sf): Minimum score supporting a gene rearrangement in order to be kept during the analysis (intermediate filtering step to speed up the analysis) [default='empty'; will consider 2 for seqDepth = low, 5 for int, and 10 for high].
@@ -102,7 +102,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 ###### Oncogenic rearrangements (i.e., translocations, etc.):
 *	runOncogenicRearrangements (-ror): Run the analysis of oncogenic IG/TCR rearrangements [yes/no, default=yes].
 *	runOnlyOncogenicRearrangements (-roor): Run only the analysis of oncogenic IG/TCR rearrangements [yes/no, default=no].
-*	mappingQualityOncoIg (-mqOnco): Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=15].
+*	mappingQualityOncoIg (-mqOnco): Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=0].
 *	minNumberReadsTumorOncoIg (-mntonco): Minimum score supporting an oncogenic IG/TCR rearrangement in order to be annotated [default=5].
 *	minNumberReadsTumorOncoIgPass (-mntoncoPass): Minimum score supporting an oncogenic IG/TCR rearrangement in order to be considered as high confidence [default='empty'; will consider 6 for seqDepth = low, 10 for int, and 15 for high].
 *	vafOncoIgPass (-vafOnco): Minimum VAF of an oncogenic IG/TCR rearrangement in order to be considered as high confidence [range: 0-1; default=0.05].
