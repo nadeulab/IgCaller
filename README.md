@@ -179,6 +179,6 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
-  * Other minor improvements and edits (virtually) all along the code.
+  * Other minor improvements and edits (virtually) all along the code, including some default arguments.
 
 For information about previous releases see the [releases notes](Releases_notes.md).
