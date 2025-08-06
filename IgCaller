@@ -236,22 +236,22 @@ parser.add_argument('-bq', '--baseQuality',
 parser.add_argument('-d', '--minDepth',
 					dest = "depth",
 					action = "store",
-					default = "2",
+					default = "1",
 					type = int,
-					help = "Depth cut off to consider a position [0-inf, default=2].")
+					help = "Depth cut off to consider a position [0-inf, default=1].")
 					
 parser.add_argument('-ad', '--minAltDepth',
 					dest = "altDepth",
 					action = "store",
-					default = "",
-					type = check_empty_or_integer,
-					help = "Alt depth cut off to consider a nucleotide [0-inf, default='empty'; will consider 1 for seqDepth = low/int and 2 for high].")
+					default = "1",
+					type = int,
+					help = "Alt depth cut off to consider a nucleotide [0-inf, default=1].")
 					
 parser.add_argument('-vaf', '--vafCutoff',
 					dest = "vafCutoff",
 					action = "store",
-					default = "0.66,0.1",
-					help = "VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by a comma, default=0.66,0.1].")	
+					default = "0.5,0.1",
+					help = "VAF cut off to consider a mutation when working with phased reads and without phased reads, respectively [two numbers between 0-1 separated by comma, default=0.5,0.1].")	
 
 parser.add_argument('-vafN', '--vafCutoffNormal',
 					dest = "vafCutoffNormal",
@@ -306,9 +306,9 @@ parser.add_argument('-roor', '--runOnlyOncogenicRearrangements',
 parser.add_argument('-mqOnco', '--mappingQualityOncoIg',
 					dest = "mapqOnco",
 					action = "store",
-					default = "15",
+					default = "0",
 					type = int,
-					help = "Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=15].") 
+					help = "Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=0].") 
 
 parser.add_argument('-mntonco', '--minNumberReadsTumorOncoIg', 
 					dest = "mntonco",
@@ -456,7 +456,7 @@ shortV = options.shortV
 mapq = str(options.mapq)
 baseq = str(options.baseq)
 depth = options.depth
-altDepth = int(options.altDepth) if options.altDepth != "" else 2 if seqDepth == "high" else 1
+altDepth = options.altDepth
 vafCutoff = options.vafCutoff.rstrip(",").split(",")
 vafCutoffNormal = options.vafCutoffNormal
 scoreCutoff = int(options.scoreCutoff) if options.scoreCutoff != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
@@ -527,7 +527,7 @@ if tumorPurity < 0 or tumorPurity > 1:
 
 ## Check VAF:
 if len(vafCutoff) != 2: 
-	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -vaf / --vafCutoff should be of the form '0.66,0.1'.")
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -vaf / --vafCutoff should be of the form '0.5,0.1'.")
 
 ## Note on TRBV30 and TRDV3 (- strand post J genes):
 if geneToAnalyze in ["tcr", "both"]:
