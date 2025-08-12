@@ -76,9 +76,12 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBLAST [builtin/igblast, default=igblast].
 * annotateSeqDB (-aa): Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.
 
-###### CLL-specific annotations:
-* subsetsAnnotation (-subsets): Should CLL stereotype subset be annotated? 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets using Agathangelidis et al Blood 2021 definitions [no/imgt/major, default = no].
-* R110annotation (-R110): Should the R110 mutation in IGLV3-21 be annotated? [no/yes, default = no].
+###### Chronic lymphocytic leukemia (CLL)-specific annotations:
+* subsetsAnnotation (-subsets): Should CLL stereotype subsets be annotated? Only applicable to productive IGH gene rearrangements. 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets based on the definitions reported in Agathangelidis et al Blood 2021 [no/imgt/major, default = no].
+* R110annotation (-R110): Should the R110 mutation in IGLV3-21 be annotated? Annotation based on the definitions reported in Nadeu et al Blood 2021 [no/yes, default = no].
+
+###### Acquired N-glycosylation sites (AGS) annotation:
+* agsAnnotation (-ags): Should acquired N-glycosylation sites (AGS) be annotated? Only applicable to productive IGH gene rearrangements and requires '-a igblast'. AGS annotation based on the definitions reported in Tatterton et al Blood 2025 [no/yes, default = no].
 
 ###### IG/TCR reconstruction:
 * highSensitivity (-hs): highSensitivity = no: runs faster by skipping low-confidence rearrangements. highSensitivity = yes: may run significantly slower in some samples since it tries to recover low-confidence rearrangements [no/yes, default = yes].
@@ -172,7 +175,8 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
   * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of IG/TCR rearrangements). See arguments -seq, -pr, -prf, and -prs for further details.
   * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, -scp, -ppc, and -pm, as well as the new output files *output_purity*).
-  * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110).
+  * Added chronic lymphocytic leukemia (CLL)-specific annotations: annotation of CLL stereotyped subsets (see -subsets) and IGLV3-21 R110 mutation (see -R110). If annotated, a tag is added next to the V(D)J genes annotation both for subsets (i.e. [CLL#2]) and R110 (i.e. [R110]).
+  * Added acquired N-glycosylation sites (AGS) annotation: annotation of AGS (see -ags). AGS are defined as N-X-T/S, where X is any amino acid except proline. If annotated, the motif(s) found and its location is reported as a tag next to the V(D)J genes annotation (i.e. [CDR-AGS (NTT:CDR3)]). A rearrangement is defined as CDR-located AGS (CDR-AGS) if any of the AGS found are located in any of the CDR regions. AGS that cross FR and CDR borders are classified as CDR. Contraily, the rearrangement is labeled as FR-located AGS (FR-AGS) if none of the AGS are located in a CDR region. The rearrangement is labeled as 'No-AGS' if no AGS are found.
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
   * Improved phasing of reads along the V gene (see -prbm).
   * Added some optional arguments to provide more flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
