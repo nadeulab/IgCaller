@@ -826,17 +826,17 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 						if geneV == v[3]:
 							if mechanism == "Deletion":
 								breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
-								leftWinV = breakV-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-4
-								rightWinV = breakV+4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+10
+								leftWinV = breakV-25 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-4
+								rightWinV = breakV+4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+25
 								potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
 							elif mechanism == "Inversion1" and GENE == "TRB":
 								breakV = int(v[1])
 								leftWinV = breakV-4
-								rightWinV = breakV+10
+								rightWinV = breakV+25
 								potentialBreakV = i[4]				
 							elif mechanism == "Inversion2" and GENE == "IGK":
 								breakV = int(v[2])
-								leftWinV = breakV-10
+								leftWinV = breakV-25
 								rightWinV = breakV+4
 								potentialBreakV = i[8]
 							break
@@ -2759,7 +2759,70 @@ def removePrimerFromSeq(seqToIgblast, GENE, primerFasta):
 	
 	return(seqToIgblast_woN)
 
-def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta):
+def annotateAGS(igblastList):
+
+	locationsList = []
+	agsList = []
+
+	# get aa sequence from igblast
+	fr1 = igblastList[37]
+	cdr1 = igblastList[39]
+	fr2 = igblastList[41]
+	cdr2 = igblastList[43]
+	fr3 = igblastList[45]
+	cdr3 = igblastList[49]
+	fr4 = igblastList[47]
+	aaSeq = fr1+cdr1+fr2+cdr2+fr3+cdr3+fr4
+	aaGermSeq = igblastList[17]
+
+	# scan for N-glycosylation motif (N-X-T/S, where X is any amino acid except proline)
+	motif = r'N[^P][TS]'
+	matches = re.finditer(motif, aaSeq, overlapped=True)
+
+	# iterate, chek if same motif in germline, annotate location/gene
+	for match in matches:
+		
+		# is motif in seq is not the same in germline
+		if aaSeq[match.start():match.end()] != aaGermSeq[match.start():match.end()]:
+			
+			mGroup = match.group()
+			mStart = match.start() + 1
+			mEnd = match.end()
+
+			if mEnd <= len(fr1):
+				mLocation = "FR"
+				mGene = "FR1"
+			elif mStart <= len(fr1+cdr1):
+				mLocation = "CDR"
+				mGene = "CDR1"
+			elif mEnd <= len(fr1+cdr1+fr2):
+				mLocation = "FR"
+				mGene = "FR2"
+			elif mStart <= len(fr1+cdr1+fr2+cdr2):
+				mLocation = "CDR"
+				mGene = "CDR2"
+			elif mEnd <= len(fr1+cdr1+fr2+cdr2+fr3):
+				mLocation = "FR"
+				mGene = "FR3"
+			elif mStart <= len(fr1+cdr1+fr2+cdr2+fr3+cdr3):
+				mLocation = "CDR"
+				mGene = "CDR3"
+			else:
+				mLocation = "FR"
+				mGene = "FR4"
+			
+			locationsList.append(mLocation)
+			agsList.append(mGroup+":"+mGene)
+	
+	# prepare output and return
+	if locationsList == []:
+		agsToReturn = "[No-AGS]"
+	else:
+		agsType = "CDR-AGS" if "CDR" in locationsList else "FR-AGS"
+		agsToReturn = "["+agsType+" ("+";".join(agsList)+")]"
+	return agsToReturn
+
+def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta, agsAnnotation):
 
 	if len(information) > 0:
 		platformSystem = "macos" if platform.system() == "Darwin" else "linux"
@@ -2831,7 +2894,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 			IGBLAST.close()
 			
 			comm = igblastn+" -germline_db_V "+germline_db_V+" -germline_db_J "+germline_db_J+" -germline_db_D "+germline_db_D+" -organism human -ig_seqtype "+ig_seqtype+" -auxiliary_data "+aux_data+" -show_translation -outfmt 19 -extend_align5end -extend_align3end -num_alignments_D "+num_alignments_D+" -num_threads 1 -query "+igblast_in+" > "+igblast_out
-			e = subprocess.call(comm, shell=True, env=dict(os.environ))
+			subprocess.call(comm, shell=True, env=dict(os.environ))
 
 		# Merge IgBlast output with "information"
 		IGBLAST = open(igblast_out, "r")
@@ -2896,6 +2959,11 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 				if productiu == "Productive (no stop codon and in-frame junction)" and ("-" in fr1fr3_t or "-" in fr1fr3_gl):
 					productiu = "Potentially productive (no stop codon and in-frame junction) [indel detected]"
 				
+				# Annotate AGS:
+				if agsAnnotation == "yes" and GENE == "IGH" and (productiu.startswith("Productive") or productiu.startswith("Potentially productive")):
+					ags = annotateAGS(igblastList)
+					igBlast_JDV = igBlast_JDV+" "+ags
+
 				# Add to information
 				p = information[int(igblastList[0].split("_")[1])]
 				if p[2] == 0 and p[6] == 0 and p[9] == 0 and p[12] == "": productiu = "Rearrangement without junction coverage"
@@ -2971,7 +3039,7 @@ def adjustReadNamesAndPartialRearrangements(information, GENE):
 
 def annotateCLLsubsets(information, subsetsAnnotation):
 	for i in information:
-		if "productive" in i[19].lower() and i[17] != "NA":
+		if (i[19].startswith("Productive") or i[19].startswith("Potentially productive")) and i[17] != "NA":
 			
 			vGenes = [ vGene.split("*")[0] for vGene in i[21].split(" - ")[-1].split(",") ]
 			identity = float(i[17])
@@ -3015,7 +3083,7 @@ def annotateCLLsubsets(information, subsetsAnnotation):
 			if subset != "": i[21] = i[21]+" "+subset
 	return(information)
 
-def annotateR110mutation(information): 
+def annotateR110mutation(information):
 	for i in information:
 		if "IGLV3-21" in i[21] and i[16].endswith("C"):
 			i[21] = i[21]+" [R110]"
