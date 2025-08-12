@@ -4124,9 +4124,13 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		stdout, stderr = process.communicate()
 		altDepth = int(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/20, 0))
 		if altDepth > len(readsToFile): altDepth = len(readsToFile)
-		vaf = round(altDepth/depth*100, 2)
-		vafAdj = round((altDepth/depth*100)/tumorPurity, 2)
-		if vafAdj >= 100: vafAdj = 100
+		if altDepth > 0:
+			vaf = round(altDepth/depth*100, 2)
+			vafAdj = round((altDepth/depth*100)/tumorPurity, 2)
+			if vafAdj >= 100: vafAdj = 100
+		else:
+			vaf = 0
+			vafAdj = 0
 		vafString = str(altDepth)+"/"+str(depth)+" ("+str(vaf)+"% ["+str(vafAdj)+"%])"
 
 		## PoN:
@@ -4159,7 +4163,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		geneID = geneID.replace(" - ", "::")		
 
 		## Return all
-		translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, str(numReads), readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance)])+("" if reportReadNames == "no" else "\t"+readNamesReport))
+		if vafAdj > 0:
+			translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, str(numReads), readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance)])+("" if reportReadNames == "no" else "\t"+readNamesReport))
 		
 		## Return pass
 		if score >= mntoncoPass and vafAdj >= vafOnco*100 and ( scoreNormal == "NA" or scoreNormal <= mnnonco ) and ponCount <= mncPoN:
