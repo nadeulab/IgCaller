@@ -160,14 +160,22 @@ parser.add_argument('-subsets', '--subsetsAnnotation',
 					action = "store",
 					default = "no",
 					choices = ['no', 'imgt', 'major'],
-					help = "Should CLL stereotype subset be annotated? 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets using Agathangelidis et al Blood 2021 definitions [no/imgt/major, default = no].")
+					help = "Should CLL stereotype subsets be annotated? Only applicable to productive IGH gene rearrangements. 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets based on the definitions reported in Agathangelidis et al Blood 2021 [no/imgt/major, default = no].")
 
 parser.add_argument('-R110', '--R110annotation', 
 					dest = "R110annotation",
 					action = "store",
 					default = "no",
 					choices = ['no', 'yes'],
-					help = "Should the R110 mutation in IGLV3-21 be annotated? [no/yes, default = no].")
+					help = "Should the R110 mutation in IGLV3-21 be annotated? Annotation based on the definitions reported in Nadeu et al Blood 2021 [no/yes, default = no].")
+
+# Acquired N-glycosylation sites (AGS) annotation:
+parser.add_argument('-ags', '--agsAnnotation',
+					dest = "agsAnnotation",
+					action = "store",
+					default = "no",
+					choices = ['no', 'yes'],
+					help = "Should acquired N-glycosylation sites (AGS) be annotated? Only applicable to productive IGH gene rearrangements and requires '-a igblast'. AGS annotation based on the definitions reported in Tatterton et al Blood 2025 [no/yes, default = no].")
 
 # IG/TCR reconstruction:
 parser.add_argument('-hs', '--highSensitivity', 
@@ -446,6 +454,7 @@ annotateSeq = options.annotateSeq
 annotateSeqDB = options.annotateSeqDB
 subsetsAnnotation = options.subsetsAnnotation
 R110annotation = options.R110annotation
+agsAnnotation = options.agsAnnotation
 highSensitivity = options.highSensitivity
 minimumNumberOfNucleotidesSoft = options.minimumNumberOfNucleotidesSoft
 phaseReadsBasedOnMutations = options.phaseReadsBasedOnMutations
@@ -628,7 +637,7 @@ if runOnlyOncogenicRearrangements == "no":
 		if GENE != "CSR":
 			# 7) Append to list V,J positions and number of occurrences:
 			information = addPositionsAndOccurrences(GENE, pos, bedFile, shortV, data)
-
+			
 			# 8) Clean positions and occurrences:
 			information = cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq)
 
@@ -654,7 +663,7 @@ if runOnlyOncogenicRearrangements == "no":
 			if collapseSequences == "yes": information = doCollapseSequences(information, collapseSequencesSimilarity, GENE)
 
 			# 15) Check homology and functionality (productive/unproductive):
-			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta)
+			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta, agsAnnotation)
 
 			# 16) Add mapping quality and calculate score:
 			information = addMapQualAndScore(information, miniBamT, tumorPurity, pathToSamtools, threadsForSamtools)
