@@ -564,7 +564,7 @@ errLogMpileup = wkDir+"/tmp/errLogMpileup.txt"
 ## Create mini IG-bam for tumor and normal (if available):
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: creating mini BAM files...")
 bamT = wkDir+"/"+originalBamT.split("/")[-1]
-comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -h -P -F 1024 -b "+originalBamT+" "+coordsToSubset+" > "+bamT  # -F 1024 = read is PCR or optical duplicate
+comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamT+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamT  # -F 1024 = read is PCR or optical duplicate
 subprocess.call(comms, shell=True)
 comms = pathToSamtools+"samtools index -@ "+threadsForSamtools+" "+bamT
 subprocess.call(comms, shell=True)
@@ -572,7 +572,7 @@ bamN = None
 miniBamN = None
 if originalBamN is not None:
 	bamN = wkDir+"/"+originalBamN.split("/")[-1]
-	comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -h -P -F 1024 -b "+originalBamN+" "+coordsToSubset+" > "+bamN
+	comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamN+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamN
 	subprocess.call(comms, shell=True)
 	comms = pathToSamtools+"samtools index -@ "+threadsForSamtools+" "+bamN 
 	subprocess.call(comms, shell=True)
