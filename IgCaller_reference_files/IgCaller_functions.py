@@ -635,24 +635,25 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter):
 				
 				ANNOT_TABLE_JV.close()
 				
-				svClassInsert = Counter(svClassInsert).most_common(1)[0][0] # Simplify to most common sv class
+				if svClassInsert != []:
+					svClassInsert = Counter(svClassInsert).most_common(1)[0][0] # Simplify to most common sv class
 
-				UNIQUEjpos = []
-				for x in Jpos:
-					if x[1] == "NotComplete" or x[1] == svClassInsert:
-						if x[0] not in UNIQUEjpos:
-							UNIQUEjpos.append(x[0])
+					UNIQUEjpos = []
+					for x in Jpos:
+						if x[1] == "NotComplete" or x[1] == svClassInsert:
+							if x[0] not in UNIQUEjpos:
+								UNIQUEjpos.append(x[0])
 
-				UNIQUEvpos = []
-				for y in Vpos:
-					if y[1] == "NotComplete" or y[1] == svClassInsert:
-						if y[0] not in UNIQUEvpos:
-							UNIQUEvpos.append(y[0])
+					UNIQUEvpos = []
+					for y in Vpos:
+						if y[1] == "NotComplete" or y[1] == svClassInsert:
+							if y[0] not in UNIQUEvpos:
+								UNIQUEvpos.append(y[0])
 
-				JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
+					JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
 
-				if key in pos: pos[key].extend(JV)
-				else: pos[key] = JV
+					if key in pos: pos[key].extend(JV)
+					else: pos[key] = JV
 				
 				# info still no info, get info from paired-insertSize, unpaired insertSize and unpaired split
 				if pos[key] == [] or (seq == "amplicon" and GENE == "IGH"): # exception for amplicon and IGH to get additional pairs by insertSize (only IGH due to N-D-N plus SHM)
@@ -679,24 +680,25 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter):
 						
 					ANNOT_TABLE_JV.close()
 					
-					svClassInsert = Counter(svClassInsert).most_common(1)[0][0] # Simplify to most common sv class
+					if svClassInsert != []:
+						svClassInsert = Counter(svClassInsert).most_common(1)[0][0] # Simplify to most common sv class
 
-					UNIQUEjpos = []
-					for x in Jpos:
-						if x[1] == "NotComplete" or x[1] == svClassInsert:
-							if x[0] not in UNIQUEjpos:
-								UNIQUEjpos.append(x[0])
+						UNIQUEjpos = []
+						for x in Jpos:
+							if x[1] == "NotComplete" or x[1] == svClassInsert:
+								if x[0] not in UNIQUEjpos:
+									UNIQUEjpos.append(x[0])
 
-					UNIQUEvpos = []
-					for y in Vpos:
-						if y[1] == "NotComplete" or y[1] == svClassInsert:
-							if y[0] not in UNIQUEvpos:
-								UNIQUEvpos.append(y[0])
-					
-					JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
-					
-					if pos[key] == []: pos[key] = JV
-					else: pos[key].extend([jvPair for jvPair in JV if jvPair not in pos[key]])
+						UNIQUEvpos = []
+						for y in Vpos:
+							if y[1] == "NotComplete" or y[1] == svClassInsert:
+								if y[0] not in UNIQUEvpos:
+									UNIQUEvpos.append(y[0])
+						
+						JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
+						
+						if pos[key] == []: pos[key] = JV
+						else: pos[key].extend([jvPair for jvPair in JV if jvPair not in pos[key]])
 	
 	return(VJ_positions, data, pos)
 
@@ -801,7 +803,7 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 
 			# if no split-read support, check if the potential breakpoints are close to the expected regions of the gene
 			else:
-				if seq != "amplicon" or GENE != "IGH": # no doing this if amplicon and IGH because initially found breakpoints may be far away from the start of gene (only IGH due to N-D-N plus SHM)
+				if seq != "amplicon" or GENE != "IGH": # no doing this if amplicon and IGH because initially found breakpoints may be far away from the start of gene depending on primer design (only IGH due to N-D-N plus SHM)
 					
 					# check position of break J
 					breakJ = "NA"
@@ -810,8 +812,8 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 						v = k.rstrip("\n").split("\t")
 						if geneJ == v[3]:
 							breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
-							leftWinJ = breakJ-4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-25
-							rightWinJ = breakJ+25 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+4
+							leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-100
+							rightWinJ = breakJ+100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+10
 							potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
 							break
 					VDJ.close()	
@@ -827,18 +829,18 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 						if geneV == v[3]:
 							if mechanism == "Deletion":
 								breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
-								leftWinV = breakV-25 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-4
-								rightWinV = breakV+4 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+25
+								leftWinV = breakV-100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-10
+								rightWinV = breakV+10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+100
 								potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
 							elif mechanism == "Inversion1" and GENE == "TRB":
 								breakV = int(v[1])
-								leftWinV = breakV-4
-								rightWinV = breakV+25
+								leftWinV = breakV-10
+								rightWinV = breakV+100
 								potentialBreakV = i[4]				
 							elif mechanism == "Inversion2" and GENE == "IGK":
 								breakV = int(v[2])
-								leftWinV = breakV-25
-								rightWinV = breakV+4
+								leftWinV = breakV-100
+								rightWinV = breakV+10
 								potentialBreakV = i[8]
 							break
 					VDJ.close()
