@@ -556,7 +556,7 @@ def findCombinationsJandV(annot_table_JV, GENE):
 			ll.append(i)
 	return(ll)
 
-def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
+def assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter):
 	
 	VJ_positions = {} # we store pairs J-V positions and if they come from split/insertsize or both in some cases
 	data = {} # we store count of pairs and individuals J/V by positions (from split) and by gene names (by insertSize) 
@@ -617,7 +617,7 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
 				pos[key] = UNIQUEspl
 			
 			# info from single-split (make all possible combinations)
-			else: 
+			if len(spl) == 0 or all(data[el[0]+" - "+el[1]] <= scoreCutoffFilter for el in UNIQUEspl):
 				ANNOT_TABLE_JV = open(annot_table_JV, "r")
 				Jpos = []
 				Vpos = []
@@ -632,7 +632,7 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
 					
 					if w[18] == key.split(" - ")[0] and w[19] == key.split(" - ")[1]: # key by insertSize reads to get SV class
 						svClassInsert.append(w[20])
-						
+				
 				ANNOT_TABLE_JV.close()
 				
 				svClassInsert = Counter(svClassInsert).most_common(1)[0][0] # Simplify to most common sv class
@@ -651,7 +651,8 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
 
 				JV = [[x+" - "+y, svClassInsert] for x in UNIQUEjpos for y in UNIQUEvpos] # we create all possible combinations if they have equal read orientation
 
-				pos[key] = JV
+				if key in pos: pos[key].extend(JV)
+				else: pos[key] = JV
 				
 				# info still no info, get info from paired-insertSize, unpaired insertSize and unpaired split
 				if pos[key] == [] or (seq == "amplicon" and GENE == "IGH"): # exception for amplicon and IGH to get additional pairs by insertSize (only IGH due to N-D-N plus SHM)

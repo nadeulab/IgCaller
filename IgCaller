@@ -612,7 +612,7 @@ if runOnlyOncogenicRearrangements == "no":
 			subprocess.call(comms, shell=True)
 			comms = pathToSamtools+"samtools index -@ "+threadsForSamtools+" "+miniBamN 
 			subprocess.call(comms, shell=True)
-
+		
 		# 3) Convert SAM file to annotated table and write to disc:
 		## Take samfile, get columns of interest and anotate reads with large insert size (as insertSize) and split/soft clipped (as split) 
 		annot_table = miniSamT.replace(".sam", "_splitinsert.tsv")
@@ -632,7 +632,7 @@ if runOnlyOncogenicRearrangements == "no":
 		l = findCombinationsJandV(annot_table_JV, GENE)
 
 		# 6) Assign positions/breaks to each J and V pairs:
-		VJ_positions, data, pos = assignPositionsToJandV(l, annot_table_JV, seq, GENE)
+		VJ_positions, data, pos = assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter)
 
 		if GENE != "CSR":
 			# 7) Append to list V,J positions and number of occurrences:
@@ -640,10 +640,10 @@ if runOnlyOncogenicRearrangements == "no":
 			
 			# 8) Clean positions and occurrences:
 			information = cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq)
-
+			
 			# 9) Add readnames:
 			information = addReadNames(GENE, information, annot_table_JV)
-
+			
 			# 10) Get J and V sequences:
 			information = getJandVsequences("first", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
 
