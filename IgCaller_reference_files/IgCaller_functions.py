@@ -2197,7 +2197,6 @@ def removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, 
 		# get rearrangements not supported by split reads
 		for i in information:
 			if i[0] not in pairsOfGenes:
-				[i.__setitem__(j, "NA") for j in [4, 5, 7, 8, 10, 11, 12, 13, 14, 15]]
 				informationCleanTmpInsert.append(i)
 				pairsOfGenes.append(i[0])
 		# recover insertSize and split-insertSize reads not used in split-read-supported rearrangements
@@ -3416,7 +3415,7 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 		prodTrip = {}
 		for ky in trip:
 			line = trip[ky]
-			if "Productive" in line[18] or "Potentially productive" in line[18] or line[18] == "Rearrangement without junction coverage":
+			if "Productive" in line[18] or "Potentially productive" in line[18] or line[18] == "Rearrangement without junction coverage" or line[18] == "Complete rearrangement (no junction found)":
 				prodTrip[ky] = line
 			elif reportOnlyProductive == "oof" and line[18] == "Unproductive (stop codons)":
 				prodTrip[ky] = line
