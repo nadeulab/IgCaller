@@ -2921,7 +2921,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 					elif igblastList[7] == "F":
 						productiu = "Unproductive (no junction found)"
 					elif igblastList[7] == "T" and igblastList[5] == "T" and igblastList[4] == "F" and igblastList[9] == "T": # 7 = productive, 5 = vj_in_frame, 4 = stop_codon, 9 = complete
-						productiu = "Productive (no junction found)"
+						productiu = "Complete rearrangement (no junction found)"
 					else:
 						productiu = "No junction found [confirm using IMGT/V-QUEST]"
 				elif igblastList[7] == "T" and igblastList[5] == "T" and igblastList[4] == "F": # 7 = productive, 5 = vj_in_frame, 4 = stop_codon
