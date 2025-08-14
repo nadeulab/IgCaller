@@ -632,7 +632,7 @@ if runOnlyOncogenicRearrangements == "no":
 		l = findCombinationsJandV(annot_table_JV, GENE)
 		
 		# 6) Assign positions/breaks to each J and V pairs:
-		VJ_positions, data, pos = assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter)
+		VJ_positions, data, pos = assignPositionsToJandV(l, annot_table_JV, seq, GENE)
 		
 		if GENE != "CSR":
 			# 7) Append to list V,J positions and number of occurrences:

@@ -556,7 +556,7 @@ def findCombinationsJandV(annot_table_JV, GENE):
 			ll.append(i)
 	return(ll)
 
-def assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter):
+def assignPositionsToJandV(l, annot_table_JV, seq, GENE):
 	
 	VJ_positions = {} # we store pairs J-V positions and if they come from split/insertsize or both in some cases
 	data = {} # we store count of pairs and individuals J/V by positions (from split) and by gene names (by insertSize) 
@@ -617,7 +617,7 @@ def assignPositionsToJandV(l, annot_table_JV, seq, GENE, scoreCutoffFilter):
 				pos[key] = UNIQUEspl
 			
 			# info from single-split (make all possible combinations)
-			if len(spl) == 0 or all(data[el[0]+" - "+el[1]] <= scoreCutoffFilter for el in UNIQUEspl):
+			if len(spl) == 0 or all(data[el[0]+" - "+el[1]] <= 2 for el in UNIQUEspl):
 				ANNOT_TABLE_JV = open(annot_table_JV, "r")
 				Jpos = []
 				Vpos = []
