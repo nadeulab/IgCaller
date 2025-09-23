@@ -4334,9 +4334,11 @@ def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOu
 						stdout, stderr = process.communicate()
 						depthDeletedGeneNormal = float(round(float(sum([int(cov) for cov in stdout.decode("utf-8").split("\n") if cov != ""]))/windowDeletedGene, 0))
 
-						if depthNormalNormal > 10: 
-							factorDeletedBreak = depthDeletedBreakNormal / depthNormalNormal
-							factorDeletedGene = depthDeletedGeneNormal / depthNormalNormal
+						if depthNormalNormal > 10:
+							if depthDeletedBreakNormal > 5:
+								factorDeletedBreak = depthDeletedBreakNormal / depthNormalNormal
+							if depthDeletedGeneNormal > 5: 
+								factorDeletedGene = depthDeletedGeneNormal / depthNormalNormal 
 					
 					# Adjust depthDeleted based on normal-BAM-derived factorDeleted and calculate covReduction
 					depthDeletedBreak = round(depthDeletedBreak / factorDeletedBreak, 0)
