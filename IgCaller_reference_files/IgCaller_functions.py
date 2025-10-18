@@ -1661,7 +1661,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 	
 	readsAlreadyRecovered = [] # list to append readNames when already recovered
 	toAddInInformation = [] # list to append to Information if same D with same length
-	ndnBasesToAdd = 10 if GENE in ["IGH", "TRB", "TRD"] else 0 # number to count for N-D-N nucleotides while recovering J-V splits (works together with minimumNumberOfNucleotidesSoft) 
+	ndnBasesToAdd = 5 if GENE in ["IGH", "TRB", "TRD"] else 0 # number to count for N-D-N nucleotides while recovering J-V splits (works together with minimumNumberOfNucleotidesSoft) 
 
 	# Round 1: Recover V reads, sort, and recover J reads
 	for geneRound in [1, 2]:
@@ -2062,7 +2062,7 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 			if readRecovered not in readsAlreadyRecovered:
 				readsAlreadyRecovered.append(readRecovered)
 
-	# Round 2: recover reads J-D and D-V (allow assignment to multiple potential rearrangements charing the same junction)
+	# Round 2: recover reads J-D and D-V (allow assignment to multiple potential rearrangements sharing the same junction)
 	for i in information:
 
 		# Get soft clipped start/end J-V :  
