@@ -3725,7 +3725,17 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				if len(nNucleotides) > len(w[9])*0.75: continue # potential artefact or situation not considered
 			
 			if strandOutChromSA != "": strandOutChrom = strandOutChromSA
-
+			
+			# adjust order positions if alteration within the same chrom
+			if inChrom == outChrom and int(posInChrom) > int(posOutChrom):
+				posOutChromTmp = posInChrom
+				strandOutChromTmp = strandInChrom
+				posInChrom = posOutChrom
+				strandInChrom = strandOutChrom
+				posOutChrom = posOutChromTmp
+				strandOutChrom = strandOutChromTmp
+			
+			# save in dicForTranslocations
 			if outChrom in dicForTranslocations[inChrom]:
 				dicForTranslocations[inChrom][outChrom].append([posInChrom, strandInChrom, posOutChrom, strandOutChrom, nNucleotides, readType, w[4], w[0]])
 			else:
@@ -4185,8 +4195,9 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		
 	return(translocationsALL, translocationsPASS)
 
-def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup):
+def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, geneToAnalyze, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup):
 	
+	# Define variables
 	if genomeVersion == "hg19":	
 		bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_JgenesForPurity.bed"
 		IGKKdePos = 89132285
@@ -4204,7 +4215,26 @@ def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOu
 	windowDeletedBreak = 50 if seq == "wgs" else 10
 	listRegionsPlot = [] # list of list with regions to plot (chr, start, end, GENE, gene-name)
 	
-	# Iterate each locus analyzed
+	# Filter listGenes if geneToAnalyze is "both" in order to estimate purity based only on IG or TCR
+	if geneToAnalyze == "both":
+		maxReads = 0
+		maxLocus = ""
+		SUMM = open(filterOutputFile, "r")
+		for sLine in SUMM:
+			sList = sLine.rstrip("\n").split("\t")
+			if sList[0] in listGenes and sList[3] != "NA":
+				if int(sList[3]) > maxReads:
+					maxReads = int(sList[3])
+					maxLocus = sList[0]
+		SUMM.close()
+
+		if maxLocus != "":
+			if maxLocus in ["IGH", "IGK", "IGL", "CSR"]:
+				listGenes = ["IGH", "IGK", "IGL", "CSR"]
+			else:
+				listGenes = ["TRA", "TRB", "TRD", "TRG"]
+	
+	# Iterate each locus to be analyzed
 	for GENE in listGenes:
 
 		if GENE == "CSR" or GENE == "TRD": continue
