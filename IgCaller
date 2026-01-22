@@ -735,7 +735,7 @@ SUMM.close()
 if estimatePurity == "yes" and runOnlyOncogenicRearrangements == "no":
 	print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: calculating purity...")
 	if bamN is None: print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: warning message... purity estimates are more accurately calculated when using a normal BAM file (either paired or unpaired) as a reference.")
-	getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup)
+	getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, geneToAnalyze, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup)
 
 # 25) Clean tmp folder, mini IG bam files - if specified - and close:
 subprocess.call("rm -r "+wkDir+"/tmp" , shell=True)
