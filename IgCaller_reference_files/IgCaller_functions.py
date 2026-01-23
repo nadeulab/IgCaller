@@ -4223,8 +4223,8 @@ def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOu
 		for sLine in SUMM:
 			sList = sLine.rstrip("\n").split("\t")
 			if sList[0] in listGenes and sList[3] != "NA":
-				if int(sList[3]) > maxReads:
-					maxReads = int(sList[3])
+				if float(sList[3]) > maxReads:
+					maxReads = float(sList[3])
 					maxLocus = sList[0]
 		SUMM.close()
 
