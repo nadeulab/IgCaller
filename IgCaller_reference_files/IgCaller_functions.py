@@ -3852,12 +3852,12 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 	
 	# 3. Annotate in normal
 	if bamN is not None and pairedMode == "paired":
-		readNamesUsedInPoN = [] # to avoid counting R1 and R2 twice
+		readNamesUsedInNormal = [] # to avoid counting R1 and R2 twice
 		samfile = open(samN, "r")
 		for i in samfile:
 			
 			w = i.rstrip("\n").split("\t")
-			if w[0] in readNamesUsedInPoN: continue
+			if w[0] in readNamesUsedInNormal: continue
 			
 			sa = []
 			for x in (w[11:]): # get SA:... after qualities
@@ -3916,12 +3916,12 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 						posOutChrom = int(posOutChrom) + sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - 1
 				if strandOutChromSA != "": strandOutChrom = strandOutChromSA
 				
-				# add PoN count
+				# add normal read count
 				if outChrom not in translocationsFiltered[inChrom]: continue
 				for trans in translocationsFiltered[inChrom][outChrom]:
 					if trans[0] == inChrom and int(trans[1])-200 <= posInChrom and int(trans[2])+200 >= posInChrom and trans[3] == strandInChrom and trans[4] == outChrom and int(trans[5])-1000 <= posOutChrom and int(trans[6])+1000 >= posOutChrom and trans[7] == strandOutChrom:
 						trans[13] = trans[13]+1
-						readNamesUsedInPoN.append(w[0])
+						readNamesUsedInNormal.append(w[0])
 		
 		samfile.close()
 
@@ -4172,10 +4172,10 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			ponList = ponLine.rstrip("\n").split("\t")
 			if igLocus in ponList[15].split("::")[igOrder]:
 				if igOrder == 0:
-					if chrB.replace("chr", "") == ponList[11].replace("chr", "") and int(positionB) >= int(ponList[12])-1000 and int(positionB) <= int(ponList[12])+1000 and strandB == ponList[13]:
+					if chrB.replace("chr", "") == ponList[13].replace("chr", "") and int(positionB) >= int(ponList[14])-1000 and int(positionB) <= int(ponList[14])+1000 and strandB == ponList[15]:
 						ponCount += 1
 				else:
-					if chrA.replace("chr", "") == ponList[8].replace("chr", "") and int(positionA) >= int(ponList[9])-1000 and int(positionA) <= int(ponList[9])+1000 and strandA == ponList[10]:
+					if chrA.replace("chr", "") == ponList[10].replace("chr", "") and int(positionA) >= int(ponList[11])-1000 and int(positionA) <= int(ponList[11])+1000 and strandA == ponList[12]:
 						ponCount += 1
 		
 		PoN.close()
