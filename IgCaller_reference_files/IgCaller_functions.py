@@ -4170,7 +4170,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		for ponLine in PoN:
 			if ponLine.startswith("Rearrangement"): continue
 			ponList = ponLine.rstrip("\n").split("\t")
-			if igLocus in ponList[15].split("::")[igOrder]:
+			if igLocus in ponList[17].split("::")[igOrder]:
 				if igOrder == 0:
 					if chrB.replace("chr", "") == ponList[13].replace("chr", "") and int(positionB) >= int(ponList[14])-1000 and int(positionB) <= int(ponList[14])+1000 and strandB == ponList[15]:
 						ponCount += 1
