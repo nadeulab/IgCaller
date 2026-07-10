@@ -3592,11 +3592,6 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 	comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamT+" "+coordsToSubset+" > "+samT
 	subprocess.call(comms, shell=True)
 	
-	if bamN is not None and pairedMode == "paired":
-		samN = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", ".sam")
-		comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamN+" "+coordsToSubset+" > "+samN
-		subprocess.call(comms, shell=True)
-
 	# 1. annotate potential 1-read translocations
 	dicForTranslocations = {} 
 	dicForTranslocations[chrom+"2"] = {}
@@ -3765,22 +3760,20 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				# check if new one-read translocation could be added to an already merged potential translocation:
 				if key2 in translocations[key1]:
 					for item2 in translocations[key1][key2]:
-						if ( abs(int(item[0]) - int(item2[1])) < 200 or abs(int(item[0]) - int(item2[2])) < 200 ) and item[1] == item2[3] and ( abs(int(item[2]) - int(item2[5])) < 1000 or abs(int(item[2]) - int(item2[6])) < 1000 )  and item[3] == item2[7]:
+						if ( abs(int(item[0]) - int(min(map(int, item2[1].split("-"))))) < 200 or abs(int(item[0]) - int(max(map(int, item2[1].split("-"))))) < 200 ) and item[1] == item2[2] and ( abs(int(item[2]) - int(min(map(int, item2[4].split("-"))))) < 1000 or abs(int(item[2]) - int(max(map(int, item2[4].split("-"))))) < 1000 )  and item[3] == item2[5]:
 							# check if same readName and readType already considered (overlaping R1 and R2)
-							if item[7] in item2[12].split(","):
-								indexOfRead = item2[12].split(",").index(item[7])
-								if item2[10].split("-")[indexOfRead] == item[5]:
+							if item[7] in item2[10].split(","):
+								indexOfRead = item2[10].split(",").index(item[7])
+								if item2[8].split("-")[indexOfRead] == item[5]:
 									alreadyConsidered = "yes"
 									break
-							item2[1] = str(min([int(item2[1]), int(item[0])]))
-							item2[2] = str(max([int(item2[2]), int(item[0])]))
-							item2[5] = str(min([int(item2[5]), int(item[2])]))
-							item2[6] = str(max([int(item2[6]), int(item[2])]))
-							item2[8] = item2[8]+1
-							item2[9] = item2[9]+"-"+item[4]
-							item2[10] = item2[10]+"-"+item[5]
-							item2[11] = item2[11]+"-"+item[6]
-							item2[12] = item2[12]+","+item[7]
+							item2[1] = item2[1]+"-"+item[0]
+							item2[4] = item2[4]+"-"+item[2]
+							item2[6] = item2[6]+1
+							item2[7] = item2[7]+"-"+item[4]
+							item2[8] = item2[8]+"-"+item[5]
+							item2[9] = item2[9]+"-"+item[6]
+							item2[10] = item2[10]+","+item[7]
 							alreadyConsidered = "yes"
 							break
 				
@@ -3811,8 +3804,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 							readNameList.append(item[7])
 
 					else:
-						if key2 in translocations[key1]: translocations[key1][key2].append([key1, str(min(position1)), str(max(position1)), strand1, key2, str(min(position2)), str(max(position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"]) # 0 will be the count in normal
-						else: translocations[key1][key2] = [ [key1, str(min(position1)), str(max(position1)), strand1, key2, str(min(position2)), str(max(position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
+						if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"]) # 0 will be the count in normal
+						else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
 
 						position1 = [int(item[0])]
 						strand1 = item[1]
@@ -3824,8 +3817,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 						readNameList = [item[7]]
 						
 			# if no more positions in second chrom, end iteration and reset:
-			if key2 in translocations[key1]: translocations[key1][key2].append([key1, str(min(position1)), str(max(position1)), strand1, key2, str(min(position2)), str(max(position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"])
-			else: translocations[key1][key2] = [ [key1, str(min(position1)), str(max(position1)), strand1, key2, str(min(position2)), str(max(position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
+			if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"])
+			else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
 			
 			position1 = list()
 			strand1 = ""
@@ -3836,7 +3829,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			mapQualList = list()
 			readNameList = list()
 	
-	# filter based on mntonco cutoff
+	# filter based on mntonco cutoff and prepare coordsToSubsetNormal bam file
+	coordsToSubsetNormal = ""
 	translocationsFiltered = {}
 	translocationsFiltered[chrom+"2"] = {}
 	translocationsFiltered[chrom+"7"] = {}
@@ -3845,12 +3839,18 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 	for key1 in translocations:
 		for key2 in translocations[key1]:
 			for item in translocations[key1][key2]: 				
-				if item[8] >= mntonco:
+				if item[6] >= mntonco:
 					if key2 in translocationsFiltered[key1]: translocationsFiltered[key1][key2].append(item)
 					else: translocationsFiltered[key1][key2] = [ item ]
+					coordsToSubsetNormal = coordsToSubsetNormal+" "+item[0]+":"+str(min(map(int, item[1].split("-")))-200)+"-"+str(max(map(int, item[1].split("-")))+200)
 	
 	# 3. Annotate in normal
 	if bamN is not None and pairedMode == "paired":
+
+		samN = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", ".sam")
+		comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamN+" "+coordsToSubsetNormal+" > "+samN
+		subprocess.call(comms, shell=True)
+
 		readNamesUsedInNormal = [] # to avoid counting R1 and R2 twice
 		samfile = open(samN, "r")
 		for i in samfile:
@@ -3918,8 +3918,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				# add normal read count
 				if outChrom not in translocationsFiltered[inChrom]: continue
 				for trans in translocationsFiltered[inChrom][outChrom]:
-					if trans[0] == inChrom and int(trans[1])-200 <= posInChrom and int(trans[2])+200 >= posInChrom and trans[3] == strandInChrom and trans[4] == outChrom and int(trans[5])-1000 <= posOutChrom and int(trans[6])+1000 >= posOutChrom and trans[7] == strandOutChrom:
-						trans[13] = trans[13]+1
+					if trans[0] == inChrom and min(map(int, trans[1].split("-")))-200 <= posInChrom and max(map(int, trans[1].split("-")))+200 >= posInChrom and trans[2] == strandInChrom and trans[3] == outChrom and min(map(int, trans[4].split("-")))-1000 <= posOutChrom and max(map(int, trans[4].split("-")))+1000 >= posOutChrom and trans[5] == strandOutChrom:
+						trans[11] = trans[11]+1
 						readNamesUsedInNormal.append(w[0])
 		
 		samfile.close()
@@ -3947,28 +3947,35 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 			for item in translocationsFiltered[key1][key2]: 
 				translocationsList.append(item)
 
-	translocationsList = sorted(translocationsList, key=operator.itemgetter(8), reverse=True)
+	translocationsList = sorted(translocationsList, key=operator.itemgetter(6), reverse=True)
 	translocationsALL = list()
 	translocationsPASS = list()
 	translocationsALL.append("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names"))
 
 	for i in translocationsList:
 
-		if i[0] == i[4]:
-			if int((i[1] if i[3] == "-" else i[2])) < int((i[5] if i[7] == "-" else i[6])):
+		if i[0] == i[3]:
+			if int((min(map(int, i[1].split("-"))) if i[2] == "-" else max(map(int, i[1].split("-"))))) < int((min(map(int, i[4].split("-"))) if i[5] == "-" else max(map(int, i[4].split("-"))))):
 				idxA = 0
-				idxB = 4
+				idxB = 3
 			else:
-				idxA = 4
+				idxA = 3
 				idxB = 0
 			
 			chrA = i[idxA]
-			strandA = i[idxA+3]
-			positionA = i[idxA + (2 if strandA == "+" else 1)]
+			strandA = i[idxA+2]
+			positionA, supportForPositionA = Counter(map(int, i[idxA+1].split("-"))).most_common(1)[0]
+			if supportForPositionA < 10:
+				positionA = max(map(int, i[idxA+1].split("-"))) if strandA == "+" else min(map(int, i[idxA+1].split("-")))
 			chrB = i[idxB]
-			strandB = i[idxB+3]
-			positionB = i[idxB + (2 if strandB == "+" else 1)]
+			strandB = i[idxB+2]
+			positionB, supportForPositionB = Counter(map(int, i[idxB+1].split("-"))).most_common(1)[0]
+			if supportForPositionB < 10:
+				positionB = max(map(int, i[idxB+1].split("-"))) if strandB == "+" else min(map(int, i[idxB+1].split("-")))
 			
+			positionA = str(positionA)
+			positionB = str(positionB)
+
 			if strandA == "+" and strandB == "-": 
 				mechanism = "Deletion"
 				traAnnot = "del("+chrA+":"+positionA+"-"+positionB+")"
@@ -3983,32 +3990,40 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		else:
 			mechanism = "Translocation"
 			
-			traAnnot = ("t("+str(min([int(i[0].replace("chr", "").replace("X", "23").replace("Y", "24")), int(i[4].replace("chr", "").replace("X", "23").replace("Y", "24"))]))+";"+str(max([int(i[0].replace("chr", "").replace("X", "23").replace("Y", "24")), int(i[4].replace("chr", "").replace("X", "23").replace("Y", "24"))]))+")").replace("23", "X").replace("24", "Y")
+			traAnnot = ("t("+str(min([int(i[0].replace("chr", "").replace("X", "23").replace("Y", "24")), int(i[3].replace("chr", "").replace("X", "23").replace("Y", "24"))]))+";"+str(max([int(i[0].replace("chr", "").replace("X", "23").replace("Y", "24")), int(i[3].replace("chr", "").replace("X", "23").replace("Y", "24"))]))+")").replace("23", "X").replace("24", "Y")
 			
 			if i[0].replace("chr", "") == traAnnot.replace("t(", "").split(";")[0]: 
 				idxA = 0
-				idxB = 4
+				idxB = 3
 			else: 
-				idxA = 4
+				idxA = 3
 				idxB = 0
 			
 			chrA = i[idxA]
-			strandA = i[idxA+3]
-			positionA = i[idxA + (2 if strandA == "+" else 1)]
-			chrB = i[idxB]
-			strandB = i[idxB+3]
-			positionB = i[idxB + (2 if strandB == "+" else 1)]
+			strandA = i[idxA+2]
 
-		score = round( i[8] / tumorPurity, 1 )
-		nNucleotidesFinal = "NA" if all(i == "NA" for i in i[9].split("-")) else Counter(i for i in i[9].split("-") if i != "NA").most_common(1)[0][0]
-		nSplits = i[10].split("-").count("split")
-		nPaired = i[10].split("-").count("paired")
+			positionA, supportForPositionA = Counter(map(int, i[idxA+1].split("-"))).most_common(1)[0]
+			if supportForPositionA < 10:
+				positionA = max(map(int, i[idxA+1].split("-"))) if strandA == "+" else min(map(int, i[idxA+1].split("-")))
+			chrB = i[idxB]
+			strandB = i[idxB+2]
+			positionB, supportForPositionB = Counter(map(int, i[idxB+1].split("-"))).most_common(1)[0]
+			if supportForPositionB < 10:
+				positionB = max(map(int, i[idxB+1].split("-"))) if strandB == "+" else min(map(int, i[idxB+1].split("-")))
+			
+			positionA = str(positionA)
+			positionB = str(positionB)
+		
+		score = round( i[6] / tumorPurity, 1 )
+		nNucleotidesFinal = "NA" if all(i == "NA" for i in i[7].split("-")) else Counter(i for i in i[7].split("-") if i != "NA").most_common(1)[0][0]
+		nSplits = i[8].split("-").count("split")
+		nPaired = i[8].split("-").count("paired")
 		readTypeFinal = str(nSplits)+" split + "+str(nPaired)+" paired"
-		quals = [int(q) for q in i[11].split("-")]
+		quals = [int(q) for q in i[9].split("-")]
 		mapQualReport = str(round(mean(quals),1))+" ("+str(min(quals))+"-"+str(max(quals))+")"
-		readNamesReport = ",".join(set(i[12].split(",")))
+		readNamesReport = ",".join(set(i[10].split(",")))
 		numReads = len(readNamesReport.split(","))
-		scoreNormal = i[13]
+		scoreNormal = i[11]
 		
 		## RepeatMasker and GeneID:
 		minDistance = genesOncoIgDistance
