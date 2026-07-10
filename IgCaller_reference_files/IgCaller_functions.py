@@ -782,74 +782,71 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 
 	informationClean = []
 
-	# remove pairs initially supported mostly by insertSize reads if highSensitivity == "no"
-	if highSensitivity == "no":
-		for i in information:
-			if i[2] > 1 or (i[2] == 1 and i[3] > 2):
+	for i in information:
+		
+		geneJ = i[0].split(" - ")[1] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[0].split(" - ")[0]
+		geneV = i[0].split(" - ")[0] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[0].split(" - ")[1]
+		mechanism = i[1]
+		partialRearrangement = "yes" if i[0].split(" - ")[0][3] == "D" or i[0].split(" - ")[1][3] == "D" else "no"
+
+		# keep if partial rearrangement or Kde/RSS
+		if partialRearrangement == "yes" or "IGKKde" in i[0] or "IGKRSS" in i[0]:
+			informationClean.append(i)
+
+		# else, check if the potential breakpoints are close to the expected regions of the gene
+		else:
+			if seq != "amplicon" or GENE != "IGH": # not doing this if amplicon and IGH because initially found breakpoints may be far away from the start of gene depending on primer design (only IGH due to N-D-N plus SHM)
+				
+				# check position of break J
+				breakJ = "NA"
+				VDJ = open(bedFile, "r")
+				for k in VDJ:
+					v = k.rstrip("\n").split("\t")
+					if geneJ == v[3]:
+						breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
+						leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-100
+						rightWinJ = breakJ+100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+10
+						potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
+						break
+				VDJ.close()	
+
+				if breakJ == "NA": continue
+				if potentialBreakJ < leftWinJ or potentialBreakJ > rightWinJ: continue
+				
+				# check position of break V
+				breakV = "NA"
+				VDJ = open(bedFile, "r")
+				for k in VDJ:
+					v = k.rstrip("\n").split("\t")
+					if geneV == v[3]:
+						if mechanism == "Deletion":
+							breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
+							leftWinV = breakV-100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-10
+							rightWinV = breakV+10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+100
+							potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
+						elif mechanism == "Inversion1" and GENE == "TRB":
+							breakV = int(v[1])
+							leftWinV = breakV-10
+							rightWinV = breakV+100
+							potentialBreakV = i[4]				
+						elif mechanism == "Inversion2" and GENE == "IGK":
+							breakV = int(v[2])
+							leftWinV = breakV-100
+							rightWinV = breakV+10
+							potentialBreakV = i[8]
+						break
+				VDJ.close()
+				
+				if breakV == "NA": continue
+				if potentialBreakV < leftWinV or potentialBreakV > rightWinV: continue
+
+			# if breakpoints are close to the positions where they should be, append to informationClean if highSensitivity == "yes"
+			if highSensitivity == "yes":
 				informationClean.append(i)
-
-	# check if potential break is found in the expected region if no split-read support
-	else:
-		for i in information:
-			
-			geneJ = i[0].split(" - ")[1] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[0].split(" - ")[0]
-			geneV = i[0].split(" - ")[0] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[0].split(" - ")[1]
-			mechanism = i[1]
-			partialRearrangement = "yes" if i[0].split(" - ")[0][3] == "D" or i[0].split(" - ")[1][3] == "D" else "no"
-
-			# keep if split reads, partial rearrangement, or Kde/RSS
-			if i[2] > 0 or partialRearrangement == "yes" or "IGKKde" in i[0] or "IGKRSS" in i[0]:
-				informationClean.append(i)
-
-			# if no split-read support, check if the potential breakpoints are close to the expected regions of the gene
+			# else, append to informationClean only if minimum requirements are met
 			else:
-				if seq != "amplicon" or GENE != "IGH": # no doing this if amplicon and IGH because initially found breakpoints may be far away from the start of gene depending on primer design (only IGH due to N-D-N plus SHM)
-					
-					# check position of break J
-					breakJ = "NA"
-					VDJ = open(bedFile, "r")
-					for k in VDJ:
-						v = k.rstrip("\n").split("\t")
-						if geneJ == v[3]:
-							breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
-							leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-100
-							rightWinJ = breakJ+100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+10
-							potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
-							break
-					VDJ.close()	
-
-					if breakJ == "NA": continue
-					if potentialBreakJ < leftWinJ or potentialBreakJ > rightWinJ: continue
-					
-					# check position of break V
-					breakV = "NA"
-					VDJ = open(bedFile, "r")
-					for k in VDJ:
-						v = k.rstrip("\n").split("\t")
-						if geneV == v[3]:
-							if mechanism == "Deletion":
-								breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
-								leftWinV = breakV-100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-10
-								rightWinV = breakV+10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+100
-								potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
-							elif mechanism == "Inversion1" and GENE == "TRB":
-								breakV = int(v[1])
-								leftWinV = breakV-10
-								rightWinV = breakV+100
-								potentialBreakV = i[4]				
-							elif mechanism == "Inversion2" and GENE == "IGK":
-								breakV = int(v[2])
-								leftWinV = breakV-100
-								rightWinV = breakV+10
-								potentialBreakV = i[8]
-							break
-					VDJ.close()
-					
-					if breakV == "NA": continue
-					if potentialBreakV < leftWinV or potentialBreakV > rightWinV: continue
-
-				# if break close to the position where it should be found, append to informationClean
-				informationClean.append(i)
+				if i[2] > 1 or (i[2] == 1 and i[3] > 2):
+					informationClean.append(i)			
 
 		# hard cutoff to avoid excessive running time if highSensitivity == "yes" and too many potential rearrangements
 		informationClean.sort(key=lambda p: round(p[2]*2 + p[3], 1), reverse=True)
@@ -1732,16 +1729,18 @@ def getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleo
 									# MS cigar
 									if min([count for count, item in enumerate(cigar1) if "M" in item]) < min([count for count, item in enumerate(cigar1) if "S" in item]):
 										mStart = sum([ int(x[0]) if x[1] in ["M", "I"] else 0 for x in cigar1 ]) - 1
+										mEnd = "NA"
 									# SM cigar
 									else:
 										if w[20] == "Deletion": subcigar1 = cigar1[:min([i for i in range(len(cigar1)) if cigar1[i][1] == "M"])] # limit cigar1 to first M
 										else: subcigar1 = cigar1
-										mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ])
 										mStart = 0
+										mEnd = sum([ int(x[0]) if x[1] == "S" else 0 for x in subcigar1 ])
 									if int(w[12]) == int(split2readList[3])+mStart:
 										jUnmap = split2readList[9][mStart+1:]
 									elif int(w[13]) == int(split2readList[3])+mStart:
-										vUnmap = split2readList[9][:mEnd]
+										if mEnd != "NA":
+											vUnmap = split2readList[9][:mEnd]
 								SPLIT2READS.close()
 								
 								# align soft clipped to get entire sequence
