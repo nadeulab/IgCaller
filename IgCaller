@@ -74,7 +74,7 @@ parser.add_argument('-pm', '--pairedMode',
 					action = "store",
 					default = None,
 					choices = ['paired', 'unpaired'],
-					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used during the estimation of tumor purity based on coverage.") 
+					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used in all analyses (V(D)J sequence reconstruction to handle SNPs, analysis of CSR, oncogenic rearrangements, and estimation of tumor purity). Unpaired = Normal BAM only used for the analysis of CSR, oncogenic rearrangements, and estimation of tumor purity.") 
 
 parser.add_argument('-R', '--refGenome',
 					dest = "refGenome",
@@ -117,7 +117,7 @@ parser.add_argument('-p', '--tumorPurity',
 					action = "store",
 					default = "1",
 					type = float,
-					help = "Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, use 1.") 
+					help = "Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, assumes 1.") 
 
 # Output path and options:
 parser.add_argument('-o', '--outputPath',
@@ -718,7 +718,7 @@ if runOnlyOncogenicRearrangements == "no":
 # 23) Genome-wide IG/TCR translocations:
 if runOncogenicRearrangements == "yes":
 	print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: analyzing genome-wide "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangements...")
-	translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup)
+	translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup)
 
 	Vseq = open(bamT.replace(".bam", "_output_oncogenic_rearrangements.tsv"), "w")
 	Vseq.write("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names")+"\n")

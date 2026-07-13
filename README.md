@@ -52,7 +52,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * sequencing (-seq): Sequencing technique [whole-genome sequencing (wgs), whole-exome sequencing (wes), high-coverage capture NGS (capture), or amplicon-based NGS (amplicon)].
 * sequencingDepth (-seqDepth): Sequencing depth [low (~30x), int (50-200x), high (>250x)].
 *	bamN (-N): Path to normal BAM file, if available.
-*	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used for all analyses. Unpaired = Normal BAM only used during the estimation of tumor purity based on coverage.
+*	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used in all analyses (V(D)J sequence reconstruction to handle SNPs, analysis of CSR, oncogenic rearrangements, and estimation of tumor purity). Unpaired = Normal BAM only used for the analysis of CSR, oncogenic rearrangements, and estimation of tumor purity.
 *	refGenome (-R): Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.
 
 #### Optional arguments:
@@ -65,7 +65,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	primerStringency (-prs): Primer stringency [strict/permissive, default=strict]. Mandatory when '-pr/--primer' is 'leader', 'fr1', 'cdr1', 'fr2', 'cdr2', or 'fr3'. 'strict' = only annotate sequences with nucleotides found after the expected location of the primer. 'permissive' = annotate sequences even if they start later than the expected location of the primer. Only applicable when IgBLAST is used for the annotation using the '-a' argument (recommended).
 
 ###### Purity of the tumor sample:
-*	tumorPurity (-p): Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, use 1.
+*	tumorPurity (-p): Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, assumes 1.
 
 ###### Output path and options:
 *	outputPath (-o): A folder inside this directory will be created with the output [default = current directory].
@@ -171,7 +171,7 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
 ### Releases
 * v2.0:
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
-  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see -a and -aa). We recommend using IgBLAST (default), especially when the normal (i.e., germline) BAM file is not available.
+  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see -a and -aa). We recommend using IgBLAST (default), especially when paired normal (i.e., germline) BAM file is not available.
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
   * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of IG/TCR rearrangements). See arguments -seq, -pr, -prf, and -prs for further details.
   * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, -scp, -ppc, and -pm, as well as the new output files *output_purity*).
@@ -179,10 +179,10 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Added acquired N-glycosylation sites (AGS) annotation: annotation of AGS (see -ags). AGS are defined as N-X-T/S, where X is any amino acid except proline. If annotated, the motif(s) found and its location is reported as a tag next to the V(D)J genes annotation (i.e. [CDR-AGS (NTT:CDR3)]). A rearrangement is defined as CDR-located AGS (CDR-AGS) if any of the AGS found are located in any of the CDR regions. AGS that cross FR and CDR borders are classified as CDR. Contraily, the rearrangement is labeled as FR-located AGS (FR-AGS) if none of the AGS are located in a CDR region. The rearrangement is labeled as 'No-AGS' if no AGS are found.
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
   * Improved phasing of reads along the V gene (see -prbm).
-  * Added some optional arguments to provide more flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
+  * Added some optional arguments for flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
-  * Other minor improvements and edits (virtually) all along the code, including some default arguments.
+  * Other minor improvements and edits (virtually) in all functions, including some default arguments.
 
 For information about previous releases see the [releases notes](Releases_notes.md).

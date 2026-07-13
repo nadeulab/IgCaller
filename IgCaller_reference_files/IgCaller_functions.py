@@ -3569,7 +3569,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 	
 	return(class_switch, class_switch_filt, reductionMeans)
 
-def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup):
+def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup):
 	
 	if genomeVersion == "hg19":
 		chrom14_IGH = [106052774, 107288051] # IGH region 
@@ -3804,8 +3804,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 							readNameList.append(item[7])
 
 					else:
-						if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"]) # 0 will be the count in normal
-						else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
+						if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None else "NA"]) # 0 will be the count in normal
+						else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None else "NA"] ]
 
 						position1 = [int(item[0])]
 						strand1 = item[1]
@@ -3817,8 +3817,8 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 						readNameList = [item[7]]
 						
 			# if no more positions in second chrom, end iteration and reset:
-			if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"])
-			else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None and pairedMode == "paired" else "NA"] ]
+			if key2 in translocations[key1]: translocations[key1][key2].append([key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None else "NA"])
+			else: translocations[key1][key2] = [ [key1, "-".join(map(str, position1)), strand1, key2, "-".join(map(str, position2)), strand2, len(readNameList), "-".join(nNucleotidesList), "-".join(readTypeList), "-".join(mapQualList), ",".join(readNameList), 0 if bamN is not None else "NA"] ]
 			
 			position1 = list()
 			strand1 = ""
@@ -3845,7 +3845,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 					coordsToSubsetNormal = coordsToSubsetNormal+" "+item[0]+":"+str(min(map(int, item[1].split("-")))-200)+"-"+str(max(map(int, item[1].split("-")))+200)
 	
 	# 3. Annotate in normal
-	if bamN is not None and pairedMode == "paired":
+	if bamN is not None:
 
 		samN = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", ".sam")
 		comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamN+" "+coordsToSubsetNormal+" > "+samN
