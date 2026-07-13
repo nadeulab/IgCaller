@@ -3924,7 +3924,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		
 		samfile.close()
 
-	# 4. Prepare output, annotate RepeatMasker and GeneID, and return
+	# 4. Prepare output, and annotate RepeatMasker and GeneID
 	mask_expand = 20
 	if genomeVersion == "hg19":
 		RepeatMasker_dicti = pickle.load(gzip.open(inputsFolder+'/hg19/dicts/RepeatMasker_rmsk_hg19_dictionary.pkl.gz', 'rb'))
@@ -3949,8 +3949,6 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 
 	translocationsList = sorted(translocationsList, key=operator.itemgetter(6), reverse=True)
 	translocationsALL = list()
-	translocationsPASS = list()
-	translocationsALL.append("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names"))
 
 	for i in translocationsList:
 
@@ -4197,17 +4195,80 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 		## Convert geneID to ::
 		geneID = geneID.replace(" - ", "::")		
 
-		## Return all
+		## Save
 		if vafAdj > 0:
-			translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, str(numReads), readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance)])+("" if reportReadNames == "no" else "\t"+readNamesReport))
-		
-		## Return pass
+			translocationsALL.append("\t".join([traAnnot, mechanism, str(score), mapQualReport, str(numReads), readTypeFinal, vafString, str(scoreNormal), str(ponCount), repeatMasker, chrA, positionA, strandA, chrB, positionB, strandB, nNucleotidesFinal, geneID, str(minDistance), readNamesReport, i[10], i[8]]))
+	
+	# 5. Merge translocations same non-IG break, different IG-break within locus
+	## note1: MQ and Depths_and_VAFs are not merged but considered only those mapping to the breakpoint retained
+	## note2: to merge: same non-IG chrom, position, strand, and len(N_nucleotides)
+	mergedTranslocationsALL = []
+	translocationsMerged = []
+	for tr in translocationsALL:
+		if tr in translocationsMerged: continue
+		else:
+			trList = tr.split("\t")
+			
+			## iterate over list again to merge translocations if necessary
+			for tr2 in translocationsALL:
+				if tr == tr2 or tr2 in translocationsMerged: continue
+				trList2 = tr2.split("\t")
+				## condition 1: break1 in IG locus, same break2 in non-IG
+				condi1 = trList[10] == trList2[10] and trList[13] == trList2[13] and int(trList[14]) == int(trList2[14]) and trList[15] == trList2[15] and len(trList[16]) == len(trList2[16])
+				## condition 2: same break1 in non-IG, break2 in IG locus
+				condi2 = trList[13] == trList2[13] and trList[10] == trList2[10] and int(trList[11]) == int(trList2[11]) and trList[12] == trList2[12] and len(trList[16]) == len(trList2[16])
+				## if any condition is True, merge them
+				if condi1 or condi2:
+					translocationsMerged.append(tr2)
+					trList[7] = str(int(trList[7]) + int(trList2[7])) # Reads_in_normal
+					trList[8] = str(int(trList[8]) + int(trList2[8])) # Count_in_PoN
+					trList[20] = trList[20]+","+trList2[20] # all read names
+					trList[21] = trList[21]+"-"+trList2[21] # read types of all read names
+
+			## once iteration is done, update pending values, and save to mergedTranslocationsALL
+			trList[19] = ",".join(set(trList[20].split(","))) # Read_names
+			trList[4] = str(len(trList[19].split(","))) # Num_reads
+			readNamesLst = trList[20].split(",")
+			readTypesLst = trList[21].split("-")
+			NamesTypesLst = [x+"-"+y for x, y in zip(readNamesLst, readTypesLst)]
+			NamesTypesLst = set(NamesTypesLst)
+			nSplits = sum(1 for readNameAndType in NamesTypesLst if readNameAndType.endswith("split"))
+			nPaired = sum(1 for readNameAndType in NamesTypesLst if readNameAndType.endswith("paired"))
+			trList[2] = str(round( (nSplits + nPaired) / tumorPurity, 1 )) # Score
+			trList[5] = str(nSplits)+" split + "+str(nPaired)+" paired" # Read_types
+			trStringToSave = "\t".join(trList[:19])+("" if reportReadNames == "no" else "\t"+trList[19])
+			mergedTranslocationsALL.append(trStringToSave)
+
+	# 6. Prepare PASS list
+	mergedTranslocationsALL = sorted(mergedTranslocationsALL, key=lambda x: float(x.split("\t")[2]), reverse=True)
+	translocationsPASS = list()
+	for tr in mergedTranslocationsALL:
+		trList = tr.split("\t")
+		score = float(trList[2])
+		vafAdj = float(trList[6].split("[")[1].replace("%])", ""))
+		scoreNormal = "NA" if trList[7] == "NA" else int(trList[7])
+		ponCount = int(trList[7])
 		if score >= mntoncoPass and vafAdj >= vafOnco*100 and ( scoreNormal == "NA" or scoreNormal <= mnnonco ) and ponCount <= mncPoN:
+			mechanism = trList[1]
+			traAnnot = trList[0]
+			chrA = trList[10]
+			positionA = trList[11]
+			strandA = trList[12]
+			chrB = trList[13]
+			positionB = trList[14]
+			strandB = trList[15]
+			nNucleotidesFinal = trList[16]
+			geneID = trList[17]
+			repeatMasker = trList[9]
+			mapQualReport = trList[3]
+			numReads = trList[4]
+			readNamesReport = "" if reportReadNames == "no" else trList[19]
 			if mechanism == "Translocation": traAnnot = traAnnot+" ["+chrA+":"+positionA+":"+strandA+";"+chrB+":"+positionB+":"+strandB+"] ["+nNucleotidesFinal+"] ["+geneID+"] ["+str(vafAdj)+"%]"
 			else: traAnnot = traAnnot+" ["+strandA+"/"+strandB+"] ["+nNucleotidesFinal+"] ["+geneID+"] ["+str(vafAdj)+"%]"
 			translocationsPASS.append("\t".join(["Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement", traAnnot, mechanism, str(score)+" ("+str(scoreNormal)+") ["+str(ponCount)+"] ["+repeatMasker+"]", mapQualReport, str(numReads)]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+readNamesReport))
-		
-	return(translocationsALL, translocationsPASS)
+	
+	# 7. Return
+	return(mergedTranslocationsALL, translocationsPASS)
 
 def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, geneToAnalyze, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup):
 	

@@ -721,6 +721,7 @@ if runOncogenicRearrangements == "yes":
 	translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, pairedMode, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup)
 
 	Vseq = open(bamT.replace(".bam", "_output_oncogenic_rearrangements.tsv"), "w")
+	Vseq.write("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names")+"\n")
 	Vseq.write("\n".join(translocationsALL)+"\n")
 	Vseq.close()
 
