@@ -1,9 +1,7 @@
 Rearrangement	Mechanism	Score	MQ	Num_reads	Read_types	Depths_and_VAF	Reads_in_normal	Count_in_PoN	Repeat_masker	Chr_A	Position_A	Strand_A	Chr_B	Position_B	Strand_B	N_nucleotides	Gene_ID	Distance_to_gene
-t(2;7)	Translocation	18.0	58.8 (39-60)	18	0 split + 18 paired	1/55 (1.82% [1.82%])	20	412	HSATII;Satellite;Satellite	2	89836793	+	7	57548864	+	NA	IGK::ZNF716	15612
+t(2;7)	Translocation	18.0	58.8 (39-60)	18	0 split + 18 paired	1/55 (1.82% [1.82%])	20	412	HSATII;Satellite;Satellite	2	89836793	+	7	57548852	+	NA	IGK::ZNF716	15600
 t(15;22)	Translocation	16.0	53.4 (30-60)	16	11 split + 5 paired	11/27 (40.74% [40.74%])	12	49	L1PA2;LINE;L1	15	87071321	-	22	22715602	+	None	AGBL1::IGL	0
-t(2;16)	Translocation	12.0	60 (60-60)	12	0 split + 12 paired	5/87 (5.75% [5.75%])	12	241	HSATII;Satellite;Satellite	2	89836759	-	16	33878889	-	NA	IGK::none	NA
-gain(14:106035708-106155669)	Gain	12.0	56.6 (35-60)	12	0 split + 12 paired	1/20 (5.0% [5.0%])	14	396	(CA)n;Simple_repeat;Simple_repeat	14	106035708	-	14	106155669	+	NA	TMEM121::IGH	39169
-del(14:106035745-106155929)	Deletion	11.0	58.3 (41-60)	11	0 split + 11 paired	2/34 (5.88% [5.88%])	11	368	(CA)n;Simple_repeat;Simple_repeat	14	106035745	+	14	106155929	-	NA	TMEM121::IGH	39206
+t(2;16)	Translocation	12.0	60 (60-60)	12	0 split + 12 paired	5/87 (5.75% [5.75%])	12	241	HSATII;Satellite;Satellite	2	89836759	-	16	33878894	-	NA	IGK::none	NA
 t(14;15)	Translocation	9.0	56 (42-60)	9	0 split + 9 paired	1/16 (6.25% [6.25%])	12	577	none	14	106636822	-	15	20173183	+	NA	IGH::none	NA
 t(14;15)	Translocation	7.0	52.4 (38-60)	7	0 split + 7 paired	1/14 (7.14% [7.14%])	7	879	none	14	106636249	+	15	20172716	-	NA	IGH::none	NA
 t(14;15)	Translocation	7.0	55 (43-60)	7	0 split + 7 paired	2/18 (11.11% [11.11%])	5	576	none	14	106636491	-	15	20172799	+	NA	IGH::none	NA
@@ -17,7 +15,7 @@ t(14;18)	Translocation	5.0	60 (60-60)	5	0 split + 5 paired	2/8 (25.0% [25.0%])	7
 t(1;14)	Translocation	5.0	0 (0-0)	5	0 split + 5 paired	5/29 (17.24% [17.24%])	9	0	(TG)n;Simple_repeat;Simple_repeat	1	15641074	+	14	106150121	-	NA	FHAD1::IGH	0
 t(14;15)	Translocation	5.0	36.4 (8-45)	5	0 split + 5 paired	3/9 (33.33% [33.33%])	7	62	L1ME1;LINE;L1	14	106677154	-	15	21209568	+	NA	IGH::POTEB2	137925
 t(2;22)	Translocation	5.0	60 (60-60)	5	0 split + 5 paired	1/2 (50.0% [50.0%])	3	373	(G)n;Simple_repeat;Simple_repeat	2	33141325	-	22	22900325	+	NA	LTBP1::IGL	30714
-inv(22:21638588-22985934)	Inversion	5.0	0 (0-0)	5	0 split + 5 paired	1/32 (3.12% [3.12%])	4	0	none	22	21638588	+	22	22985934	+	NA	GGT2::IGL	56662
+inv(22:21638588-22985934)	Inversion	5.0	0 (0-0)	5	0 split + 5 paired	1/32 (3.12% [3.12%])	0	0	none	22	21638588	+	22	22985934	+	NA	GGT2::IGL	56662
 t(18;22)	Translocation	5.0	60 (60-60)	5	4 split + 1 paired	4/37 (10.81% [10.81%])	2	6	AluY;SINE;Alu	18	14830888	-	22	22534136	+	None	ANKRD30B::IGL	0
 t(8;22)	Translocation	5.0	60 (60-60)	5	5 split + 0 paired	5/37 (13.51% [13.51%])	2	0	AluSx;SINE;Alu	8	145529726	+	22	22534136	+	None	HSF1::IGL	0
 t(21;22)	Translocation	5.0	16.8 (0-22)	5	0 split + 5 paired	3/54 (5.56% [5.56%])	6	44	(AGATG)n;Simple_repeat;Simple_repeat	21	9551843	+	22	22641341	+	NA	none::IGL	NA
