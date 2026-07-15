@@ -179,7 +179,7 @@ The IgCaller repository bundles several third-party packages and reference files
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
   * Other minor improvements and edits (virtually) in all functions, including some default arguments.
 
-For information about previous releases see the [releases notes](Releases_notes.md).
+For information about previous releases see the [releases notes](Releases_notes.md). Note that somre earlier, archived versions of IgCaller can be found in the [old repository](https://github.com/ferrannadeu/IgCaller).
 
 ### Other notes
 
