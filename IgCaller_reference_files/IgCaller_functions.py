@@ -3572,7 +3572,7 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogMpileup):
 	
 	if genomeVersion == "hg19":
-		chrom14_IGH = [106052774, 107288051] # IGH region 
+		chrom14_IGH = [106030000, 107290000] # IGH region 
 		chrom2_IGK = [89131589, 90274600] # IGK region
 		chrom22_IGL = [22380000, 23266000] # IGL region
 		chrom14_TRA_TRD = [22069991, 23034042] # TRA region (TRD within TRA)
