@@ -154,10 +154,6 @@ IgCaller returns a set of tab-separated files:
 * tumor_sample_output_purity_RawTumorCoverage.pdf: File containing the plots of the raw tumor coverage along the genes used to estimate the purity.
 * tumor_sample_output_purity_NormalizedTumorCoverage.pdf: File containing the plots of the normalized tumor coverage along the genes used to estimate the purity. Coverage is normalized by mean coverage of the tumor sample in the region considered and by the coverage of the normal sample (i.e., baseline coverage distribution), if available. 
 
-### Other notes
-
-An R script to help the study of mutational signatures in CLL is available under the "Mutational_signature_analysis_in_CLL" folder. This script aims to determine the presence/absence of non-canonical AID mutations (signature 9) in CLL patients using an already defined catalogue of single nucleotide variants.
-
 ### Third-party packages and reference files
 
 The IgCaller repository bundles several third-party packages and reference files required for its operation. All of these resources are included directly within IgCaller, so users do not need to perform any additional installation or configuration steps. To ensure transparency and properly acknowledge the original sources, this section documents the external materials integrated into the tool. It is provided solely for explanatory context.
@@ -165,16 +161,6 @@ The IgCaller repository bundles several third-party packages and reference files
 * IgBLAST: Used to annotate the sequences reconstructed if specified using the '-a' argument. For more information, please see the [original website](https://ncbi.github.io/igblast/) and [license](https://ncbi.github.io/igblast/dev/copyright.html). It is included (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast].
 * IMGT reference sequences: IG and TCR gene sequences provided by The International Immunogenetics Information System -(IMGT)[https://www.imgt.org], (license)[https://imgt.org/#termsofuse])- are downloaded from their (webpage)[https://www.imgt.org/vquest/refseqh.html#VQUEST] and processed using IgBLAST's "edit_imgt_file.pl" and "makeblastdb" functions. The use of these reference sequences can be specified using the '-aa' argument. These sequences are provided (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast/db].
 * OGRDB reference sequences: IG sequences provided by the Open Germline Receptor Database -(OGRDB)[https://ogrdb.airr-community.org], (license)[https://ogrdb.airr-community.org/render_page/licensing_statement.html]- are downloaded from their (webpage)[https://ogrdb.airr-community.org/germline_sets] and processed using custom scripts and IgBLAST's "makeblastdb" function. The use of these reference sequences can be specified using the '-aa' argument. These sequences are provided (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast/db].
-
-### Citation
-
-If you use IgCaller, please cite:
-
-Nadeu, F., Mas-de-les-Valls, R., Navarro, A. et al. IgCaller for reconstructing immunoglobulin gene rearrangements and oncogenic translocations from whole-genome sequencing in lymphoid neoplasms. Nature Communications 11, 3390 (2020). https://doi.org/10.1038/s41467-020-17095-7.
-
-### Contact
-
-Bugs, comments and improvements can be submitted as GitHub [issues](https://github.com/nadeulab/IgCaller/issues) or directly to *nadeu@recerca.clinic.cat*. If running into any bugs or issues, please share a reproducible example.
 
 ### Releases
 * v2.0:
@@ -194,3 +180,17 @@ Bugs, comments and improvements can be submitted as GitHub [issues](https://gith
   * Other minor improvements and edits (virtually) in all functions, including some default arguments.
 
 For information about previous releases see the [releases notes](Releases_notes.md).
+
+### Other notes
+
+An R script to help the study of mutational signatures in CLL is available under the "Mutational_signature_analysis_in_CLL" folder. This script aims to determine the presence/absence of non-canonical AID mutations (signature 9) in CLL patients using an already defined catalogue of single nucleotide variants.
+
+### Contact
+
+Bugs, comments and improvements can be submitted as GitHub [issues](https://github.com/nadeulab/IgCaller/issues) or directly to *nadeu@recerca.clinic.cat*. If running into any bugs or issues, please share a reproducible example.
+
+### Citation
+
+If you use IgCaller, please cite:
+
+Nadeu, F., Mas-de-les-Valls, R., Navarro, A. et al. IgCaller for reconstructing immunoglobulin gene rearrangements and oncogenic translocations from whole-genome sequencing in lymphoid neoplasms. Nature Communications 11, 3390 (2020). https://doi.org/10.1038/s41467-020-17095-7.
