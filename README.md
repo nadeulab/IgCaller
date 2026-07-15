@@ -18,7 +18,7 @@ IgCaller is a python program designed to fully characterize the immunoglobulin (
 Download and uncompress the ZIP file or clone the IgCaller repository:
 
 ```
-git clone https://github.com/ferrannadeu/IgCaller
+git clone https://github.com/nadeulab/IgCaller
 ```
 
 Starting at version 1.4-beta, run the following command to allow executable permissions:
@@ -53,7 +53,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * sequencingDepth (-seqDepth): Sequencing depth [low (~30x), int (50-200x), high (>250x)].
 *	bamN (-N): Path to normal BAM file, if available.
 *	pairedMode (-pm): Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used in all analyses (V(D)J sequence reconstruction to handle SNPs, analysis of CSR, oncogenic rearrangements, and estimation of tumor purity). Unpaired = Normal BAM only used for the analysis of CSR, oncogenic rearrangements, and estimation of tumor purity.
-*	refGenome (-R): Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.
+*	refGenome (-R): Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a paired-normal BAM file using the argument 'bamN'. Mandatory when no paired normal BAM files is specified and when '-seq' is set to 'amplicon'.
 
 #### Optional arguments:
 ###### Gene/receptor to be analyzed:
@@ -73,8 +73,8 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 * reportReadNames (-rrn): Report read names associated with each rearrangement found [no/yes, default=no].
 
 ###### Annotation tool and database:
-* annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBLAST [builtin/igblast, default=igblast].
-* annotateSeqDB (-aa): Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.
+* annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBLAST (v1.22.0) [builtin/igblast, default=igblast].
+* annotateSeqDB (-aa): Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202625-4 (18 June 2026); OGRDB = release 2026-05-27.
 
 ###### Chronic lymphocytic leukemia (CLL)-specific annotations:
 * subsetsAnnotation (-subsets): Should CLL stereotype subsets be annotated? Only applicable to productive IGH gene rearrangements. 'imgt' to annotate #2 and #8 using IMGT criteria; 'major' to annotate all major subsets based on the definitions reported in Agathangelidis et al Blood 2021 [no/imgt/major, default = no].
@@ -158,6 +158,14 @@ IgCaller returns a set of tab-separated files:
 
 An R script to help the study of mutational signatures in CLL is available under the "Mutational_signature_analysis_in_CLL" folder. This script aims to determine the presence/absence of non-canonical AID mutations (signature 9) in CLL patients using an already defined catalogue of single nucleotide variants.
 
+### Third-party packages and reference files
+
+The IgCaller repository bundles several third-party packages and reference files required for its operation. All of these resources are included directly within IgCaller, so users do not need to perform any additional installation or configuration steps. To ensure transparency and properly acknowledge the original sources, this section documents the external materials integrated into the tool. It is provided solely for explanatory context.
+
+* IgBLAST: Used to annotate the sequences reconstructed if specified using the '-a' argument. For more information, please see the [original website](https://ncbi.github.io/igblast/) and [license](https://ncbi.github.io/igblast/dev/copyright.html). It is included (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast].
+* IMGT reference sequences: IG and TCR gene sequences provided by The International Immunogenetics Information System ((IMGT)[https://www.imgt.org], (license)[https://imgt.org/#termsofuse]) are downloaded from their (webpage)[https://www.imgt.org/vquest/refseqh.html#VQUEST] and processed using IgBLAST's "edit_imgt_file.pl" and "makeblastdb" functions. The use of these reference sequences can be specified using the '-aa' argument. These sequences are provided (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast/db].
+* OGRDB reference sequences: IG sequences provided by the Open Germline Receptor Database ((OGRDB)[https://ogrdb.airr-community.org], (license)[https://ogrdb.airr-community.org/render_page/licensing_statement.html]) are downloaded from their (webpage)[https://ogrdb.airr-community.org/germline_sets] and processed using custom scripts and IgBLAST's "makeblastdb" function. The use of these reference sequences can be specified using the '-aa' argument. These sequences are provided (here)[https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast/db].
+
 ### Citation
 
 If you use IgCaller, please cite:
@@ -166,12 +174,12 @@ Nadeu, F., Mas-de-les-Valls, R., Navarro, A. et al. IgCaller for reconstructing 
 
 ### Contact
 
-Bugs, comments and improvements can be submitted as GitHub [issues](https://github.com/ferrannadeu/IgCaller/issues) or directly to *nadeu@recerca.clinic.cat*. If running into any bugs or issues, please share a reproducible example.
+Bugs, comments and improvements can be submitted as GitHub [issues](https://github.com/nadeulab/IgCaller/issues) or directly to *nadeu@recerca.clinic.cat*. If running into any bugs or issues, please share a reproducible example.
 
 ### Releases
 * v2.0:
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
-  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see -a and -aa). We recommend using IgBLAST (default), especially when paired normal (i.e., germline) BAM file is not available.
+  * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST (v1.22.0) using IMGT (release 202625-4; 18 June 2026) or OGRDB (release 2026-05-27) databases (see -a and -aa). We recommend using IgBLAST coupled with IMGT (default settings), especially when paired normal (i.e., germline) BAM file is not available.
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
   * Added compatibility with data generated using amplicon-based NGS approaches (i.e., primer-based PCR amplification of IG/TCR rearrangements). See arguments -seq, -pr, -prf, and -prs for further details.
   * Added a module to calculate tumor purity based on the IG/TCR gene rearrangements (see arguments -ep, -epc, -scp, -ppc, and -pm, as well as the new output files *output_purity*).
