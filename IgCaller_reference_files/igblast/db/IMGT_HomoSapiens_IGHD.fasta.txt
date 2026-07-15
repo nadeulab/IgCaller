@@ -46,6 +46,8 @@ gtattatgattacgtttgggggagttatcgttatacc
 gtattatgattacatttgggggagttatcgttatacc
 >IGHD3-22*01
 gtattactatgatagtagtggttattactac
+>IGHD3-22*02
+gtattactatgatagtagtggctattactac
 >IGHD3-3*01
 gtattacgatttttggagtggttattatacc
 >IGHD3-3*02

@@ -14,5 +14,7 @@ attcactttcggccctgggaccaaagtggatatcaaac
 gctcactttcggcggagggaccaaggtggagatcaaac
 >IGKJ4*02
 gctcacgttcggcggagggaccaaggtggagatcaaac
+>IGKJ4*03
+gctcaacttcggcggagggaccaaggtggagatcaaac
 >IGKJ5*01
 gatcaccttcggccaagggacacgactggagattaaac

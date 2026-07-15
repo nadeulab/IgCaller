@@ -20,8 +20,6 @@ tgatgcttttgatatctggggccaagggacaatggtcaccgtctcttcag
 cttgcggttggacttcccagccgacagtggtggtctggcttctgaggggtca
 >IGHJ3P*02
 cttgcagttggacttcccaggccgacagtggtctggcttctgaggggtca
->IGHJ3P*03
-cttccggttggacttcccaggccgacagtggtctggcttctgaggagtca
 >IGHJ4*01
 actactttgactactggggccaaggaaccctggtcaccgtctcctcag
 >IGHJ4*02
@@ -47,7 +45,4 @@ attactactactactactacatggacgtctggggcaaagggaccacggtcaccgtctcct
 cag
 >IGHJ6*04
 attactactactactacggtatggacgtctggggcaaagggaccacggtcaccgtctcct
-cag
->IGHJ6*05
-atcactactactactgctgcatggacgtctggggcaaagggaccacggtcaccgtcgcct
 cag

@@ -110,6 +110,9 @@ a
 >TRAJ41*01
 gaactcaaattccgggtatgcactcaacttcggcaaaggcacctcgctgttggtcacacc
 cc
+>TRAJ41*02
+gaactcaaattccgggtatgaactcaacttcggcaaaggcacctcgctgttggtcacacc
+cc
 >TRAJ42*01
 tgaattatggaggaagccaaggaaatctcatctttggaaaaggcactaaactctctgtta
 aaccaa
@@ -155,6 +158,9 @@ ttatactggagccaatagtaagctgacatttggaaaaggaataactctgagtgttagacc
 ag
 >TRAJ57*01
 taactcagggcggatctgaaaagctggtctttggaaagggaacgaaactgacagtaaacc
+cat
+>TRAJ57*02
+taactcagggcggatctgaaaagctggtctttggaaagggaatgaaactgacagtaaacc
 cat
 >TRAJ58*01
 tttaagaaaccagtggctctaggttgacctttggggaaggaacacagctcacagtgaatc

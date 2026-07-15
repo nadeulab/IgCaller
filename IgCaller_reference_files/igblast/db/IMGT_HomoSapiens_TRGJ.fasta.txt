@@ -11,3 +11,5 @@ ag
 ataccactggttggttcaagatatttgctgaagggactaagctcatagtaacttcacctg
 >TRGJP2*01
 atagtagtgattggatcaagacgtttgcaaaagggactaggctcatagtaacttcgcctg
+>TRGJP2*02
+atagtagtgattggatcaagacgtttgcaaaagggactaagctcatagtaacttcgcctg
