@@ -15,7 +15,6 @@ RUN set -e \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
-
 RUN set -e \
       && cd / \
       && git clone https://github.com/nadeulab/IgCaller \
