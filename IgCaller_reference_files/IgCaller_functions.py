@@ -2858,7 +2858,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 		if e != 0:
 			print("IgCaller: error message (1/4)... IgBlast not working properly on your system. Please, see error message above.")
 			print("IgCaller: error message (2/4)... Please, solve this issue and run the following column to test IgBlast:")
-			print("IgCaller: error message (3/4)... "+igblastn+" --help")
+			print("IgCaller: error message (3/4)... "+igblastn+" -help")
 			print("IgCaller: error message (4/4)... Once this error is solved, please, re-run IgCaller.")
 			sys.exit(1)
 		
