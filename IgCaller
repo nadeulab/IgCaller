@@ -152,7 +152,7 @@ parser.add_argument('-aa', '--annotateSeqDB',
 					action = "store",
 					default = "imgt",
 					choices = ['imgt', 'ogrdb'],
-					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202430-2 (23 July 2024); OGRDB = release 2024-10-12.") 
+					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202625-4 (18 June 2026); OGRDB = release 2026-05-27.") 
 
 # CLL-specific annotations:
 parser.add_argument('-subsets', '--subsetsAnnotation', 
