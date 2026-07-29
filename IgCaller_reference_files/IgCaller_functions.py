@@ -804,7 +804,7 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 					if geneJ == v[3]:
 						breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
 						leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-100
-						rightWinJ = int(v[2]) if GENE == "IGL" else breakJ+100 if GENE in ["TRA", "TRB", "TRD"] else breakJ+10
+						rightWinJ = int(v[2])+20 if GENE == "IGL" else breakJ+100 if GENE in ["TRA", "TRB", "TRD"] else breakJ+10
 						potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
 						break
 				VDJ.close()	
