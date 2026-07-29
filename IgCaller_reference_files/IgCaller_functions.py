@@ -256,7 +256,6 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 			if w[11] == "split" or w[11] == "split-insertSize": # add 2 columns
 				
 				# 1st_pos
-				two1 = [split1[x:x+2] for x in range(0, len(split1),2)]
 				if len([count for count, item in enumerate(two1) if "S" in item]) == 0:
 					firstpos = sum([int(i[0]) for i in two1 if "M" in i or "D" in i]) - 1
 				elif min([count for count, item in enumerate(two1) if "M" in item]) < min([count for count, item in enumerate(two1) if "S" in item]):
@@ -290,7 +289,7 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 					# sort (smaller first)
 					w[-2:] = min(w[-2:]), max(w[-2:])
 					
-					if diffMappingBases > 0: 
+					if diffMappingBases > 0:
 						
 						if int(flagToCustomBinary(w[1])[4]) == 0: strand = "+"
 						else: strand = "-"
@@ -805,7 +804,7 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 					if geneJ == v[3]:
 						breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
 						leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-100
-						rightWinJ = breakJ+100 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ+10
+						rightWinJ = int(v[2]) if GENE == "IGL" else breakJ+100 if GENE in ["TRA", "TRB", "TRD"] else breakJ+10
 						potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
 						break
 				VDJ.close()	
