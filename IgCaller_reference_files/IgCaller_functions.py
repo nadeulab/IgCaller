@@ -3845,7 +3845,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 					coordsToSubsetNormal = coordsToSubsetNormal+" "+item[0]+":"+str(min(map(int, item[1].split("-")))-200)+"-"+str(max(map(int, item[1].split("-")))+200)
 	
 	# 3. Annotate in normal
-	if bamN is not None:
+	if any(vals for vals in translocationsFiltered.values()) and bamN is not None:
 
 		samN = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", ".sam")
 		comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamN+" "+coordsToSubsetNormal+" > "+samN
@@ -3916,6 +3916,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				if strandOutChromSA != "": strandOutChrom = strandOutChromSA
 				
 				# add normal read count
+				if inChrom not in translocationsFiltered: continue
 				if outChrom not in translocationsFiltered[inChrom]: continue
 				for trans in translocationsFiltered[inChrom][outChrom]:
 					if trans[0] == inChrom and min(map(int, trans[1].split("-")))-200 <= posInChrom and max(map(int, trans[1].split("-")))+200 >= posInChrom and trans[2] == strandInChrom and trans[3] == outChrom and min(map(int, trans[4].split("-")))-1000 <= posOutChrom and max(map(int, trans[4].split("-")))+1000 >= posOutChrom and trans[5] == strandOutChrom:
