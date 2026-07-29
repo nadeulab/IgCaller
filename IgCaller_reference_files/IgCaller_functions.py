@@ -3845,7 +3845,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 					coordsToSubsetNormal = coordsToSubsetNormal+" "+item[0]+":"+str(min(map(int, item[1].split("-")))-200)+"-"+str(max(map(int, item[1].split("-")))+200)
 	
 	# 3. Annotate in normal
-	if any(vals for vals in translocationsFiltered.values()) and bamN is not None:
+	if any(translocationsFiltered.values()) and bamN is not None:
 
 		samN = wkDir+"/tmp/"+bamN.split("/")[-1].replace(".bam", ".sam")
 		comms = pathToSamtools+"samtools view -@ "+threadsForSamtools+" -q "+mapqOnco+" "+bamN+" "+coordsToSubsetNormal+" > "+samN
