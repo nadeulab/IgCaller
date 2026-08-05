@@ -2,7 +2,7 @@
 
 <br>
 
-The IgCaller software is protected under copyright and registered on [SafeCreative](https://www.safecreative.org/en).
+The **IgCaller** software is protected under copyright and registered on [SafeCreative](https://www.safecreative.org/en).
 
 
 **Title of the work:** IgCaller Software
