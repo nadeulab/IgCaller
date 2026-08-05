@@ -7,6 +7,12 @@ import sys
 import os
 import datetime
 
+# Action to show license
+class LicenseAction(argparse.Action):
+	def __call__(self, parser, namespace, values, option_string=None):
+		print("See license in https://github.com/nadeulab/IgCaller/blob/main/LICENSE.md")
+		parser.exit()
+
 # Function to check inputs
 def check_empty_or_integer(value):
 	if value == "":
@@ -18,9 +24,9 @@ def check_empty_or_integer(value):
 			sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... '"+value+"' should be an integer.")
 
 # Manage inputs
-parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0 (https://github.com/ferrannadeu/IgCaller)''')
-
+parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0 (https://github.com/nadeulab/IgCaller)''')
 parser.add_argument('-v', '--version', action='version', version="%(prog)s v2.0")
+parser.add_argument('-l', '--license', nargs=0, action=LicenseAction, help="show license and exit")
 
 # Mandatory:
 parser.add_argument('-I', '--inputsFolder',
