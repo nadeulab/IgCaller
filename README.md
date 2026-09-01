@@ -71,6 +71,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 *	outputPath (-o): A folder inside this directory will be created with the output [default = current directory].
 * keepMiniIgBams (-kmb): Should IgCaller keep (ie no remove) mini IG BAM files used in the analysis? [no/yes, default=no].
 * reportReadNames (-rrn): Report read names associated with each rearrangement found [no/yes, default=no].
+* predefinedFilterMode (-pfm): Mode of the predefined filtering step [soft/hard, default=soft].
 
 ###### Annotation tool and database:
 * annotateSeq (-a): Annotate sequence using IgCaller built-in annotation workflow or using IgBLAST (v1.22.0) [builtin/igblast, default=igblast].
