@@ -145,6 +145,13 @@ parser.add_argument('-rrn', '--reportReadNames',
 					choices = ['no', 'yes'],
 					help = "Report read names associated with each rearrangement found [no/yes, default=no].")
 
+parser.add_argument('-pfm', '--predefinedFilterMode', 
+					dest = "predefinedFilterMode",
+					action = "store",
+					default = "soft",
+					choices = ['soft', 'hard'],
+					help = "Mode of the predefined filtering step [soft/hard, default=soft].")
+
 # Annotation tool and database:
 parser.add_argument('-a', '--annotateSeq',
 					dest = "annotateSeq",
@@ -456,6 +463,7 @@ tumorPurity = options.tumorPurity
 outputPath = options.outputPath
 keepMiniIgBams = options.keepMiniIgBams
 reportReadNames = options.reportReadNames
+predefinedFilterMode = options.predefinedFilterMode
 annotateSeq = options.annotateSeq
 annotateSeqDB = options.annotateSeqDB
 subsetsAnnotation = options.subsetsAnnotation
@@ -655,7 +663,7 @@ if runOnlyOncogenicRearrangements == "no":
 
 			# 11) Get D sequences (IGH/TRB/TRD = N-D-N, IGK/IGL/TRA/TRG = N):
 			information = getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft, seq, bedFile, refGenome, miniBamT, pathToSamtools, errLogMpileup)
-
+			
 			# 12) Remove low support rearrangements and adjust insertSize only rearrangements:
 			information = removeLowSupportRearrangements(information, tumorPurity, scoreCutoffFilter, keepInsertSizeOnlyRearrangements, annot_table_JV, seqDepth)
 			
@@ -667,7 +675,7 @@ if runOnlyOncogenicRearrangements == "no":
 
 			# 14) Collapse rearrangements with similar nucleotide sequences:
 			if collapseSequences == "yes": information = doCollapseSequences(information, collapseSequencesSimilarity, GENE)
-
+			
 			# 15) Check homology and functionality (productive/unproductive):
 			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta, agsAnnotation)
 
@@ -682,7 +690,7 @@ if runOnlyOncogenicRearrangements == "no":
 			if GENE == "IGL" and R110annotation == "yes": information = annotateR110mutation(information)
 			
 			# 19) Pre-defined filter:
-			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion, collapseSequencesSimilarity)
+			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion, collapseSequencesSimilarity, predefinedFilterMode)
 			
 			# 20) Save output and clean:
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
