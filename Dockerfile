@@ -10,7 +10,7 @@ RUN set -e \
 RUN set -e \
       && apt-get -y update \
       && apt-get install -y python3-setuptools \
-      && pip3 install --no-cache-dir regex numpy==1.24.4 scipy==1.13.1 biopython==1.85 pandas==2.3.1 seaborn==0.13.2 matplotlib==3.10.5 \
+      && pip3 install --break-system-packages --no-cache-dir regex numpy==1.24.4 scipy==1.13.1 biopython==1.85 pandas==2.3.1 seaborn==0.13.2 matplotlib==3.10.5 \
       && apt-get -y autoremove \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
