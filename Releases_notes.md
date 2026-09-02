@@ -1,6 +1,6 @@
 # Releases notes
 
-* v2.0:
+* v2.0.0:
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
   * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST using IMGT or OGRDB databases (see -a and -aa). We recommend using IgBLAST (default), especially when paired normal (i.e., germline) BAM file is not available.
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
@@ -10,7 +10,7 @@
   * Added acquired N-glycosylation sites (AGS) annotation: annotation of AGS (see -ags). AGS are defined as N-X-T/S, where X is any amino acid except proline. If annotated, the motif(s) found and its location is reported as a tag next to the V(D)J genes annotation (i.e. [CDR-AGS (NTT:CDR3)]). A rearrangement is defined as CDR-located AGS (CDR-AGS) if any of the AGS found are located in any of the CDR regions. AGS that cross FR and CDR borders are classified as CDR. Contraily, the rearrangement is labeled as FR-located AGS (FR-AGS) if none of the AGS are located in a CDR region. The rearrangement is labeled as 'No-AGS' if no AGS are found.
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
   * Improved phasing of reads along the V gene (see -prbm).
-  * Added some optional arguments for flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
+  * Added some optional arguments for flexibility (see -pfm, -rop, -kisor, -cs, -css, -ror, and -roor)
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
