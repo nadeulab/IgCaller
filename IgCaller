@@ -24,8 +24,8 @@ def check_empty_or_integer(value):
 			sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... '"+value+"' should be an integer.")
 
 # Manage inputs
-parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0 (https://github.com/nadeulab/IgCaller)''')
-parser.add_argument('-v', '--version', action='version', version="%(prog)s v2.0")
+parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0.0 (https://github.com/nadeulab/IgCaller)''')
+parser.add_argument('-v', '--version', action='version', version="%(prog)s v2.0.0")
 parser.add_argument('-l', '--license', nargs=0, action=LicenseAction, help="show license and exit")
 
 # Mandatory:
@@ -144,13 +144,6 @@ parser.add_argument('-rrn', '--reportReadNames',
 					default = "no",
 					choices = ['no', 'yes'],
 					help = "Report read names associated with each rearrangement found [no/yes, default=no].")
-
-parser.add_argument('-pfm', '--predefinedFilterMode', 
-					dest = "predefinedFilterMode",
-					action = "store",
-					default = "soft",
-					choices = ['soft', 'hard'],
-					help = "Mode of the predefined filtering step [soft/hard, default=soft].")
 
 # Annotation tool and database:
 parser.add_argument('-a', '--annotateSeq',
@@ -302,6 +295,13 @@ parser.add_argument('-scsr', '--scoreCutoffCSR',
 					type = check_empty_or_integer,
 					help = "Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
 
+parser.add_argument('-pfm', '--predefinedFilterMode', 
+					dest = "predefinedFilterMode",
+					action = "store",
+					default = "soft",
+					choices = ['soft', 'hard'],
+					help = "Mode of the predefined filtering step [soft/hard, default=soft].")
+
 parser.add_argument('-rop', '--reportOnlyProductive',
 					dest = "reportOnlyProductive",
 					action = "store",
@@ -440,7 +440,7 @@ options = parser.parse_args()
 
 # Starting:
 startTime = datetime.datetime.now()
-print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller v2.0")
+print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller v2.0.0")
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: starting run...")
 
 # Prepare some variables and files:
@@ -463,7 +463,6 @@ tumorPurity = options.tumorPurity
 outputPath = options.outputPath
 keepMiniIgBams = options.keepMiniIgBams
 reportReadNames = options.reportReadNames
-predefinedFilterMode = options.predefinedFilterMode
 annotateSeq = options.annotateSeq
 annotateSeqDB = options.annotateSeqDB
 subsetsAnnotation = options.subsetsAnnotation
@@ -487,6 +486,7 @@ scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter 
 if scoreCutoffFilter > scoreCutoff: scoreCutoffFilter = scoreCutoff
 scoreCutoffPurity = int(options.scoreCutoffPurity) if options.scoreCutoffPurity != "" else scoreCutoff
 scoreCutoffCSR = int(options.scoreCutoffCSR) if options.scoreCutoffCSR != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
+predefinedFilterMode = options.predefinedFilterMode
 reportOnlyProductive = options.reportOnlyProductive
 runOncogenicRearrangements = options.runOncogenicRearrangements
 runOnlyOncogenicRearrangements = options.runOnlyOncogenicRearrangements
