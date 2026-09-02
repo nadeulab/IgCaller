@@ -164,7 +164,7 @@ The IgCaller repository bundles several third-party packages and reference files
 * OGRDB reference sequences: IG sequences provided by the Open Germline Receptor Database ([OGRDB](https://ogrdb.airr-community.org), [license](https://ogrdb.airr-community.org/render_page/licensing_statement.html)) are downloaded from their [webpage](https://ogrdb.airr-community.org/germline_sets) and processed using custom scripts and IgBLAST's "makeblastdb" function. The use of these reference sequences can be specified using the '-aa' argument. These sequences are provided [here](https://github.com/nadeulab/IgCaller/tree/main/IgCaller_reference_files/igblast/db).
 
 ### Releases
-* v2.0:
+* v2.0.0:
   * Added functionality to reconstruct the T-cell receptor (TCR). See [issue #10](https://github.com/ferrannadeu/IgCaller/issues/10) and argument -g for details.
   * Added the possibility to annotate the reconstructed IG/TCR sequences using either the built-in annotation scheme of IgCaller or IgBLAST (v1.22.0) using IMGT (release 202625-4; 18 June 2026) or OGRDB (release 2026-05-27) databases (see -a and -aa). We recommend using IgBLAST coupled with IMGT (default settings), especially when paired normal (i.e., germline) BAM file is not available.
   * Added the reconstruction of partial (J-D or D-V only) rearrangements.
@@ -174,7 +174,7 @@ The IgCaller repository bundles several third-party packages and reference files
   * Added acquired N-glycosylation sites (AGS) annotation: annotation of AGS (see -ags). AGS are defined as N-X-T/S, where X is any amino acid except proline. If annotated, the motif(s) found and its location is reported as a tag next to the V(D)J genes annotation (i.e. [CDR-AGS (NTT:CDR3)]). A rearrangement is defined as CDR-located AGS (CDR-AGS) if any of the AGS found are located in any of the CDR regions. AGS that cross FR and CDR borders are classified as CDR. Contraily, the rearrangement is labeled as FR-located AGS (FR-AGS) if none of the AGS are located in a CDR region. The rearrangement is labeled as 'No-AGS' if no AGS are found.
   * Significant improvements on sensitivity and specificity for both IG/TCR gene rearrangements and oncogenic alterations (see -hs, -sf, and -mnns).
   * Improved phasing of reads along the V gene (see -prbm).
-  * Added some optional arguments for flexibility (see -rop, -kisor, -cs, -css, -ror, and -roor)
+  * Added some optional arguments for flexibility (see -pfm, -rop, -kisor, -cs, -css, -ror, and -roor)
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
