@@ -143,7 +143,7 @@ parser.add_argument('-rrn', '--reportReadNames',
 					action = "store",
 					default = "no",
 					choices = ['no', 'yes'],
-					help = "Report read names associated with each rearrangement found [no/yes, default=no].")
+					help = "Report read names associated with each rearrangement [no/yes, default=no].")
 
 # Annotation tool and database:
 parser.add_argument('-a', '--annotateSeq',
@@ -158,7 +158,7 @@ parser.add_argument('-aa', '--annotateSeqDB',
 					action = "store",
 					default = "imgt",
 					choices = ['imgt', 'ogrdb'],
-					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202625-4 (18 June 2026); OGRDB = release 2026-05-27.") 
+					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202631-1 (27 July 2026); OGRDB = release 2026-05-27.") 
 
 # CLL-specific annotations:
 parser.add_argument('-subsets', '--subsetsAnnotation', 
@@ -279,28 +279,35 @@ parser.add_argument('-s', '--scoreCutoff',
 					action = "store",
 					default = "",
 					type = check_empty_or_integer,
-					help = "Minimum score supporting a gene rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
+					help = "Minimum score supporting a gene rearrangement in order to be reported in the filtered output file as PASS [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
+
+parser.add_argument('-slc', '--scoreCutoffLowConfidence',
+					dest = "scoreCutoffLowConfidence",
+					action = "store",
+					default = "",
+					type = check_empty_or_integer,
+					help = "Minimum score supporting a gene rearrangement in order to be reported in the filtered output file as LowConfidence [default='empty'; not used (i.e., only PASS rearrangements are reported)].")
 
 parser.add_argument('-sf', '--scoreCutoffFilter',
 					dest = "scoreCutoffFilter",
 					action = "store",
 					default = "",
 					type = check_empty_or_integer,
-					help = "Minimum score supporting a gene rearrangement in order to be kept during the analysis (intermediate filtering step to speed up the analysis) [default='empty'; will consider 2 for seqDepth = low, 5 for int, and 10 for high].")
+					help = "Minimum score supporting a gene rearrangement in order to be kept during the analysis (intermediate filtering step to speed up the analysis) [default='empty'; will consider 2 for seqDepth = low, 3 for int, and 5 for high].")
 
 parser.add_argument('-scsr', '--scoreCutoffCSR',
 					dest = "scoreCutoffCSR",
 					action = "store",
 					default = "",
 					type = check_empty_or_integer,
-					help = "Minimum score supporting a CSR rearrangement in order to be considered as high confidence [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
+					help = "Minimum score supporting a CSR rearrangement in order to be reported in the filtered output file as PASS [default='empty'; will consider 5 for seqDepth = low, 10 for int, and 15 for high].")
 
 parser.add_argument('-pfm', '--predefinedFilterMode', 
 					dest = "predefinedFilterMode",
 					action = "store",
 					default = "soft",
 					choices = ['soft', 'hard'],
-					help = "Mode of the predefined filtering step [soft/hard, default=soft].")
+					help = "Mode of the predefined filtering step for gene rearrangements [soft/hard, default=soft]. 'soft' = less strict; 'hard' = more strict.")
 
 parser.add_argument('-rop', '--reportOnlyProductive',
 					dest = "reportOnlyProductive",
@@ -343,28 +350,28 @@ parser.add_argument('-mntoncoPass', '--minNumberReadsTumorOncoIgPass',
 					action = "store",
 					default = "",
 					type = check_empty_or_integer,
-					help = "Minimum score supporting an oncogenic IG/TCR rearrangement in order to be considered as high confidence [default='empty'; will consider 6 for seqDepth = low, 10 for int, and 15 for high].")
+					help = "Minimum score supporting an oncogenic IG/TCR rearrangement in order to be reported in the filtered output file as PASS [default='empty'; will consider 6 for seqDepth = low, 10 for int, and 15 for high].")
 
 parser.add_argument('-vafOnco', '--vafOncoIgPass', 
 					dest = "vafOnco",
 					action = "store",
 					default = "0.05",
 					type = float,
-					help = "Minimum VAF of an oncogenic IG/TCR rearrangement in order to be considered as high confidence [range: 0-1; default=0.05].")
+					help = "Minimum VAF of an oncogenic IG/TCR rearrangement in order to be reported in the filtered output file as PASS [range: 0-1; default=0.05].")
 
 parser.add_argument('-mnnonco', '--maxNumberReadsNormalOncoIg', 
 					dest = "mnnonco",
 					action = "store",
 					default = "2",
 					type = int,
-					help = "Maximum number of reads supporting an oncogenic IG/TCR rearrangement in the normal sample in order to be considered as high confidence [default=2].")
+					help = "Maximum number of reads supporting an oncogenic IG/TCR rearrangement in the normal sample in order to be reported in the filtered output file as PASS [default=2].")
 
 parser.add_argument('-mncPoN', '--maxNumberCountInPoN', 
 					dest = "mncPoN",
 					action = "store",
 					default = "2",
 					type = int,
-					help = "Maximum number of count in panel of normals (PoN) in order to be considered as high confidence [default=2].")
+					help = "Maximum number of count in panel of normals (PoN) in order to be reported in the filtered output file as PASS [default=2].")
 
 parser.add_argument('-gOnco', '--genesOncoIg', 
 					dest = "genesOncoIg",
@@ -377,7 +384,7 @@ parser.add_argument('-cgOnco', '--customGenesOncoIg',
 					dest = "customGenesOncoIg",
 					action = "store",
 					default = "",
-					help = "Comma-separated list of genes to be annotated with higher priority on the non-IG/TCR breakpoint if they are found within '-gOncoDist' of the breakpoint [default=''].")
+					help = "Comma-separated list of genes to be annotated with higher priority on the non-IG/TCR breakpoint if they are found within '-cgOncoDist' of the breakpoint [default=''].")
 
 parser.add_argument('-gOncoDist', '--genesOncoIgDistance',
 					dest = "genesOncoIgDistance",
@@ -407,13 +414,6 @@ parser.add_argument('-epc', '--estimatePurityCoverage',
 					default = "no",
 					choices = ['no', 'yes', 'igh'],
 					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.") 
-
-parser.add_argument('-scp', '--scoreCutoffPurity',
-					dest = "scoreCutoffPurity",
-					action = "store",
-					default = "",
-					type = check_empty_or_integer,
-					help = "Minimum score supporting a rearrangement in order to be considered during purity calculation [default='empty'; same as 'scoreCutoff'].")
 
 parser.add_argument('-ppc', '--plotPurityCoverage',
 					dest = "plotPurityCoverage",
@@ -482,9 +482,8 @@ altDepth = options.altDepth
 vafCutoff = options.vafCutoff.rstrip(",").split(",")
 vafCutoffNormal = options.vafCutoffNormal
 scoreCutoff = int(options.scoreCutoff) if options.scoreCutoff != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
-scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter != "" else 10 if seqDepth == "high" else 5 if seqDepth == "int" else 2
-if scoreCutoffFilter > scoreCutoff: scoreCutoffFilter = scoreCutoff
-scoreCutoffPurity = int(options.scoreCutoffPurity) if options.scoreCutoffPurity != "" else scoreCutoff
+scoreCutoffLowConfidence = int(options.scoreCutoffLowConfidence) if options.scoreCutoffLowConfidence != "" else scoreCutoff
+scoreCutoffFilter = int(options.scoreCutoffFilter) if options.scoreCutoffFilter != "" else 5 if seqDepth == "high" else 3 if seqDepth == "int" else 2
 scoreCutoffCSR = int(options.scoreCutoffCSR) if options.scoreCutoffCSR != "" else 15 if seqDepth == "high" else 10 if seqDepth == "int" else 5
 predefinedFilterMode = options.predefinedFilterMode
 reportOnlyProductive = options.reportOnlyProductive
@@ -530,6 +529,20 @@ if seq == "amplicon" and refGenome is None and annotateSeq == "igblast":
 if annotateSeq == "igblast" and annotateSeqDB == "ogrdb" and geneToAnalyze in ["tcr", "both"]:
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... the 'ogrdb' can only be used to annotate IG genes. Please, use 'imgt' database to analyze TCR or IG+TCR. You can also analyze IG and TCR in independent runs, using 'ogrdb' for IG analyses.")
 
+## Check primer for amplicon:
+if seq == "amplicon" and primer is None:
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... primer has to be specified if '-seq amplicon' using the '-pr/--primer' argument.")
+if primer == "Vseq" and primerFasta == "": 
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... '-prf/--primerFasta' must be specified if '-pr/--primer' is 'Vseq'.")
+
+## Check scores:
+if scoreCutoffLowConfidence > scoreCutoff:
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... --scoreCutoff must be greater than or equal to --scoreCutoffLowConfidence.")
+if scoreCutoffFilter > scoreCutoff:
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... --scoreCutoff must be greater than or equal to --scoreCutoffFilter.")
+if scoreCutoffFilter > scoreCutoffLowConfidence:
+	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... --scoreCutoffLowConfidence must be greater than or equal to --scoreCutoffFilter.")
+
 ## Check collapse sequences:
 if collapseSequencesSimilarity < 0 or collapseSequencesSimilarity > 1: 
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -css / --collapseSequencesSimilarity should be a float between 0 and 1.")
@@ -538,14 +551,8 @@ if collapseSequencesSimilarity < 0 or collapseSequencesSimilarity > 1:
 if minimumNumberOfNucleotidesSoft <= 0: 
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -mnns / --minimumNumberOfNucleotidesSoft should be an integer higher than 0.")
 
-## Check primer for amplicon:
-if seq == "amplicon" and primer is None:
-	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... primer has to be specified if '-seq amplicon' using the '-pr/--primer' argument.")
-if primer == "Vseq" and primerFasta == "": 
-	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... '-prf/--primerFasta' must be specified if '-pr/--primer' is 'Vseq'.")
-
 ## Check tumor purity:
-if tumorPurity < 0 or tumorPurity > 1: 
+if tumorPurity <= 0 or tumorPurity > 1: 
 	sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... -p / --tumorPurity should be a float between 0 and 1.")
 
 ## Check VAF:
@@ -594,7 +601,7 @@ if originalBamN is not None:
 ## Main output file:
 filterOutputFile = wkDir+"/"+originalBamT.split("/")[-1].replace(".bam", "_output_filtered.tsv")
 SUMM = open(filterOutputFile, "w")
-header = "Analysis\tAnnotation\tMechanism\tScore\tMQ\tNum_reads\tV_gene_phase_info\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
+header = "Analysis\tAnnotation\tFlag_annotation\tMechanism\tScore\tFlag_score\tMQ\tNum_reads\tV_gene_phase_info\tV_gene_pct_identity_to_germline\tLength_considered_identity\tFunctionality\tJunction_amino_acid_sequence\tSequence"+("" if reportReadNames == "no" else "\tRead_names")
 SUMM.write(header+"\n")
 
 # Iterate over each IG/TCR locus:
@@ -630,17 +637,11 @@ if runOnlyOncogenicRearrangements == "no":
 		# 3) Convert SAM file to annotated table and write to disc:
 		## Take samfile, get columns of interest and anotate reads with large insert size (as insertSize) and split/soft clipped (as split) 
 		annot_table = miniSamT.replace(".sam", "_splitinsert.tsv")
-		store = convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleotidesSoft)
-		ANNOT_TABLE = open(annot_table, "w")
-		for read, data in store.items(): ANNOT_TABLE.write("%s\n" %"\t".join([str(x) for x in data]))
-		ANNOT_TABLE.close()
+		convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleotidesSoft, annot_table)
 		
 		# 4) Find the J and V genes corresponding to each split/insert size position:
-		JV_list = findJandVgenes(annot_table, bedFile, GENE, genomeVersion)
-		annot_table_JV = miniSamT.replace(".sam", "_splitinsert_VJ.tsv")
-		ANNOT_TABLE_JV = open(annot_table_JV, "w")
-		for i in JV_list: ANNOT_TABLE_JV.write(i)
-		ANNOT_TABLE_JV.close()
+		annot_table_JV = annot_table.replace(".tsv", "_VJ.tsv")
+		findJandVgenes(annot_table, bedFile, GENE, genomeVersion, annot_table_JV)
 		
 		# 5) Find combinations of J-V:
 		l = findCombinationsJandV(annot_table_JV, GENE)
@@ -653,14 +654,14 @@ if runOnlyOncogenicRearrangements == "no":
 			information = addPositionsAndOccurrences(GENE, pos, bedFile, shortV, data)
 			
 			# 8) Clean positions and occurrences:
-			information = cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq)
+			information = cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, seq, annot_table_JV)
 			
 			# 9) Add readnames:
 			information = addReadNames(GENE, information, annot_table_JV)
 			
 			# 10) Get J and V sequences:
 			information = getJandVsequences("first", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
-
+			
 			# 11) Get D sequences (IGH/TRB/TRD = N-D-N, IGK/IGL/TRA/TRG = N):
 			information = getDsequence(information, annot_table_JV, GENE, Dseqs, minimumNumberOfNucleotidesSoft, seq, bedFile, refGenome, miniBamT, pathToSamtools, errLogMpileup)
 			
@@ -672,16 +673,16 @@ if runOnlyOncogenicRearrangements == "no":
 			## third round: to get final sequence based on all reads assigned to each rearrangement
 			information = getJandVsequences("second", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
 			information = getJandVsequences("third", seq, phaseReadsBasedOnMutations, information, annot_table_JV, GENE, refGenome, snps_file, baseq, chromGene, bamN, pairedMode, miniBamT, miniBamN, depth, altDepth, tumorPurity, vafCutoff, vafCutoffNormal, pathToSamtools, threadsForSamtools, errLogMpileup)
-
+			
 			# 14) Collapse rearrangements with similar nucleotide sequences:
 			if collapseSequences == "yes": information = doCollapseSequences(information, collapseSequencesSimilarity, GENE)
 			
 			# 15) Check homology and functionality (productive/unproductive):
 			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta, agsAnnotation)
-
+			
 			# 16) Add mapping quality and calculate score:
 			information = addMapQualAndScore(information, miniBamT, tumorPurity, pathToSamtools, threadsForSamtools)
-
+			
 			# 17) Adjust read names and update sequence of partial rearrangements:
 			information = adjustReadNamesAndPartialRearrangements(information, GENE)
 			
@@ -690,7 +691,7 @@ if runOnlyOncogenicRearrangements == "no":
 			if GENE == "IGL" and R110annotation == "yes": information = annotateR110mutation(information)
 			
 			# 19) Pre-defined filter:
-			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, genomeVersion, collapseSequencesSimilarity, predefinedFilterMode)
+			trip = predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCutoff, scoreCutoffLowConfidence, genomeVersion, collapseSequencesSimilarity, predefinedFilterMode)
 			
 			# 20) Save output and clean:
 			Vseq = open(bamT.replace(".bam", "_output_"+GENE+".tsv"), "w")
@@ -702,11 +703,11 @@ if runOnlyOncogenicRearrangements == "no":
 			Vseq.close()
 			
 			if len(trip) != 0:
-				indxs = [0,21,22,24,14,16,17,18,19,15]
+				indxs = [25,0,21,26,22,24,14,16,17,18,19,15]
 				if reportReadNames == "yes": indxs.append(23)
 				SUMM.write("\n".join([GENE+"\t"+trip[item][20]+"\t"+'\t'.join(map(str, map(trip[item].__getitem__, indxs))) for item in trip])+"\n")
 			else:
-				SUMM.write(GENE+"\tNo rearrangement found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
+				SUMM.write(GENE+"\tNo rearrangement found"+"\tNA"*(12 if reportReadNames == "no" else 13)+"\n")
 		
 		elif GENE == "CSR":
 			# 21) Study coverage around CSR and return info:
@@ -721,10 +722,10 @@ if runOnlyOncogenicRearrangements == "no":
 			Vseq.close()
 			
 			if len(class_switch_filt) == 0:
-				SUMM.write("CSR\tIGHM\tNo CSR found"+"\tNA"*(9 if reportReadNames == "no" else 10)+"\n")
+				SUMM.write("CSR\tIGHM\tPASS\tNo CSR found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
 			else:
 				class_switch_filt = class_switch_filt[reductionMeans.index(max(reductionMeans))] # keep only the one with highest reduction/score
-				SUMM.write("\t".join(["CSR", class_switch_filt[0], class_switch_filt[1], str(class_switch_filt[2]), class_switch_filt[3], str(class_switch_filt[4])]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+class_switch_filt[9])+"\n")
+				SUMM.write("\t".join(["CSR", class_switch_filt[0], "PASS", class_switch_filt[1], str(class_switch_filt[2]), "PASS", class_switch_filt[3], str(class_switch_filt[4])]+["NA"]*6)+("" if reportReadNames == "no" else "\t"+class_switch_filt[9])+"\n")
 		
 		# 22) Clean intermediate files:
 		subprocess.call("rm "+wkDir+"/tmp/*", shell=True)
@@ -740,7 +741,7 @@ if runOncogenicRearrangements == "yes":
 	Vseq.close()
 
 	if len(translocationsPASS) > 0: SUMM.write("\n".join(translocationsPASS)+"\n")
-	else: SUMM.write("Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement\tNo rearrangements found"+"\tNA"*(10 if reportReadNames == "no" else 11)+"\n")
+	else: SUMM.write("Oncogenic "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangement\tNo rearrangements found"+"\tNA"*(12 if reportReadNames == "no" else 13)+"\n")
 
 	subprocess.call("rm "+wkDir+"/tmp/*", shell=True)
 
@@ -750,7 +751,7 @@ SUMM.close()
 if estimatePurity == "yes" and runOnlyOncogenicRearrangements == "no":
 	print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: calculating purity...")
 	if bamN is None: print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: warning message... purity estimates are more accurately calculated when using a normal BAM file (either paired or unpaired) as a reference.")
-	getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, geneToAnalyze, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoffPurity, plotPurityCoverage, reportReadNames, errLogMpileup)
+	getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOutputFile, geneToAnalyze, listGenes, estimatePurityCoverage, bamT, bamN, seqDepth, pathToSamtools, mapq, scoreCutoff, plotPurityCoverage, reportReadNames, errLogMpileup)
 
 # 25) Clean tmp folder, mini IG bam files - if specified - and close:
 subprocess.call("rm -r "+wkDir+"/tmp" , shell=True)
@@ -761,5 +762,5 @@ if keepMiniIgBams != "yes":
 	subprocess.call(comms, shell=True)
 
 endTime = datetime.datetime.now()
-execTime = str(endTime-startTime)
+execTime = str(int(endTime-startTime))
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: done. Execution time: "+execTime)
