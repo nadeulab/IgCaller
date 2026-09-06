@@ -4,6 +4,10 @@ ttatgtcttcggaactgggaccaaggtcaccgtcctag
 tgtggtattcggcggagggaccaagctgaccgtcctag
 >IGLJ2A*01
 tgtggtattcggcggagggaccaagctgaccgtcctag
+>IGLJ2A*02
+ttgggtgttcggcggagggaccaagctgaccgtcctag
+>IGLJ2B*01
+ttgggtgttcggcggagggaccaagctgaccgtcctag
 >IGLJ3*01
 tgtggtattcggcggagggaccaagctgaccgtcctag
 >IGLJ3*02
