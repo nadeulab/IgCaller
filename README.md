@@ -182,10 +182,6 @@ The IgCaller repository bundles several third-party packages and reference files
 
 For information about previous releases see the [releases notes](Releases_notes.md). Note that some earlier, archived versions of IgCaller can be found in the [old repository](https://github.com/ferrannadeu/IgCaller).
 
-### Other notes
-
-An R script to help the study of mutational signatures in CLL is available under the "Mutational_signature_analysis_in_CLL" folder. This script aims to determine the presence/absence of non-canonical AID mutations (signature 9) in CLL patients using an already defined catalogue of single nucleotide variants.
-
 ### Contact
 
 Bugs, comments and improvements can be submitted as GitHub [issues](https://github.com/nadeulab/IgCaller/issues) or directly to *nadeu@recerca.clinic.cat*. If running into any bugs or issues, please share a reproducible example.
