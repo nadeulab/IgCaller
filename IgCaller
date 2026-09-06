@@ -762,5 +762,5 @@ if keepMiniIgBams != "yes":
 	subprocess.call(comms, shell=True)
 
 endTime = datetime.datetime.now()
-execTime = str(int(endTime-startTime))
+execTime = str(endTime-startTime).split(".")[0]
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: done. Execution time: "+execTime)
