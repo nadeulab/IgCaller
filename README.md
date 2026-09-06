@@ -132,7 +132,7 @@ Adjust the parameters for sequencing technique, sequencing coverage, gene to be 
 IgCaller only requires 1 CPU, and it usually takes around 5-10 minutes to characterize the complete IG/TCR of one tumor sample, including the analysis of oncogenic rearrangements and purity estimations. Execution time increases with sequencing coverage and number of potential rearrangements present in the sample.
 
 #### Tested on:
-IgCaller was tested on a MacBook Pro (macOS Mojave, Big Sur, Ventura), Ubuntu (16.04, 18.04, 22.04), and MareNostrum 4 (Barcelona Supercomputing Center, SUSE Linux Enterpirse Server 12 SP2 with python/3.6.1).
+IgCaller has been tested on a macOS (Ventura and Sonoma), Linux (Ubuntu-22.04.1), and HPC environment (Barcelona Supercomputing Center (BSC) - Nord4 cluster, SUSE Linux Enterpirse Server with python/3.6.1).
 
 #### Demo dataset:
 A demo dataset to test IgCaller is provided under the "Demo" folder.
