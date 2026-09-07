@@ -21,6 +21,7 @@ RUN apt-get update && \
             python3 \
             python3-pip \ 
             python3-setuptools \
+            libgomp1 \
             samtools=1.16.1-1 && \
       pip3 install --break-system-packages --no-cache-dir \
             regex \
