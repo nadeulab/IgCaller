@@ -4679,7 +4679,7 @@ def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, thre
 				## if any condition is True, merge them
 				if condi1 or condi2:
 					translocationsMerged.append(tr2)
-					trList[7] = str(int(trList[7]) + int(trList2[7])) # Reads_in_normal
+					trList[7] = str(int(trList[7]) + int(trList2[7])) if trList[7] != "NA" else "NA" # Reads_in_normal
 					trList[8] = str(int(trList[8]) + int(trList2[8])) # Count_in_PoN
 					trList[20] = trList[20]+","+trList2[20] # all read names
 					trList[21] = trList[21]+"-"+trList2[21] # read types of all read names
