@@ -28,7 +28,7 @@ def run_bam_preparation(command, errLogSamtools):
 		with open(errLogSamtools, "a") as log:
 			subprocess.run(["/bin/bash", "-o", "pipefail", "-c", command], stderr=log, check=True)
 	except subprocess.CalledProcessError as exc:
-		sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: BAM preparation failed (exit code "+str(exc.returncode)+"). Check cloud access, the BAM index, and "+errLogSamtools+".")
+		sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: BAM preparation failed (exit code "+str(exc.returncode)+"). Check cloud access if streaming from a cloud provider, the BAM index, and "+errLogSamtools+".")
 
 # Manage inputs
 parser  = argparse.ArgumentParser(prog='IgCaller', description='''IgCaller v2.0.0 (https://github.com/nadeulab/IgCaller)''')
