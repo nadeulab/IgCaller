@@ -1,0 +1,10 @@
+>TRDJ1*01_F
+acaccgataaactcatctttggaaaaggaacccgtgtgactgtggaaccaa
+>TRDJ2*01_F
+ctttgacagcacaactcttctttggaaagggaacacaactcatcgtggaaccag
+>TRDJ3*01_F
+ctcctgggacacccgacagatgtttttcggaactggcatcaaactcttcgtggagcccc
+>TRDJ4*01_F
+ccagacccctgatctttggcaaaggaacctatctggaggtacaacaac
+>TRDJ4*02_F
+ccagacccctgatctttggcaaaggaacctatctggaggtacaacaat

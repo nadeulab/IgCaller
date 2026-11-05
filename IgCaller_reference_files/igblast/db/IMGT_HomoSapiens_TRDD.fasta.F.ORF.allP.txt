@@ -1,0 +1,6 @@
+>TRDD1*01_F
+gaaatagt
+>TRDD2*01_F
+ccttcctac
+>TRDD3*01_F
+actgggggatacg

@@ -1,0 +1,15 @@
+>TRGJ1*01_F
+gaattattataagaaactctttggcagtggaacaacactggttgtcacag
+>TRGJ1*02_F
+gaattattataagaaactctttggcagtggaacaacacttgttgtcacag
+>TRGJ2*01_F
+gaattattataagaaactctttggcagtggaacaacacttgttgtcacag
+>TRGJP*01_F
+tgggcaagagttgggcaaaaaaatcaaggtatttggtcccggaacaaagcttatcattac
+ag
+>TRGJP1*01_F
+ataccactggttggttcaagatatttgctgaagggactaagctcatagtaacttcacctg
+>TRGJP2*01_F
+atagtagtgattggatcaagacgtttgcaaaagggactaggctcatagtaacttcgcctg
+>TRGJP2*02_F
+atagtagtgattggatcaagacgtttgcaaaagggactaagctcatagtaacttcgcctg

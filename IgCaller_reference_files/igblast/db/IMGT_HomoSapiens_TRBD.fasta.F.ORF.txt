@@ -1,0 +1,6 @@
+>TRBD1*01_F
+gggacagggggc
+>TRBD2*01_F
+gggactagcggggggg
+>TRBD2*02_F
+gggactagcgggaggg
