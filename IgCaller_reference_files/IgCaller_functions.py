@@ -4,6 +4,7 @@
 import subprocess
 import sys
 import os
+import datetime
 import platform
 import regex as re
 import numpy as np
@@ -47,6 +48,13 @@ tripletsToAA = {'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
 				}
 
 # functions
+def runBamPreparation(command, errLogSamtools):
+	try:
+		with open(errLogSamtools, "a") as log:
+			subprocess.run(["/bin/bash", "-o", "pipefail", "-c", command], stderr=log, check=True)
+	except subprocess.CalledProcessError as exc:
+		sys.exit(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: error message... BAM preparation failed (exit code "+str(exc.returncode)+"). Check cloud access if streaming from a cloud provider, the BAM index, and "+errLogSamtools+".")
+
 def smithwaterman(x, y, match_score=5, mismatch_cost=4, gap_cost=8):
     # scoring matrix
 	M = np.zeros((len(x) + 1, len(y) + 1), int) # +1 because of the zero column and zero row
@@ -93,13 +101,15 @@ def customSequenceMatcher(seqA, seqB, seqType):
 	return(0 if total == 0 else matches/total)
 
 def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateSeqDB):
+	dbName = annotateSeqDB.split("_")[0].upper()
+	dbSuffix = "F.ORF.allP.txt" if annotateSeqDB == "imgt" else "F.ORF.txt" if annotateSeqDB == "imgt_noP" else "txt"
 	Dseqs = "NA"
-	germline_db_D = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_Dfake.fasta.txt"
+	germline_db_D = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_Dfake.fasta.txt"
 	if GENE == "IGH":
 		chromGene = chrom+"14"	
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGHJ.fasta.txt"
-		germline_db_D = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGHD.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGHV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGHJ.fasta."+dbSuffix
+		germline_db_D = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGHD.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGHV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":106329000-107283600"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_IGH_genes_VJ.bed"
@@ -111,8 +121,8 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 	
 	elif GENE == "IGL":
 		chromGene = chrom+"22"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGLJ.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGLV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGLJ.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGLV.fasta."+dbSuffix
 		if genomeVersion == "hg19": 
 			coordsToSubsetLocus = chromGene+":22384800-23263900"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_IGL_genes_VJ.bed"
@@ -122,8 +132,8 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 
 	elif GENE == "IGK":
 		chromGene = chrom+"2"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGKJ.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_IGKV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGKJ.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_IGKV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":89131589-90274600"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/wgEncodeGencodeBasicV19_hg19_IGK_genes_VJ.bed"
@@ -145,8 +155,8 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 	
 	elif GENE == "TRA":
 		chromGene = chrom+"14"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRAJ.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRAV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRAJ.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRAV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":22089991-23014042"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/gencode.v19.annotation_hg19_TRA_genesVJ.bed"
@@ -156,9 +166,9 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 
 	elif GENE == "TRB":
 		chromGene = chrom+"7"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRBJ.fasta.txt"
-		germline_db_D = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRBD.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRBV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRBJ.fasta."+dbSuffix
+		germline_db_D = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRBD.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRBV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":141999017-142511084"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/gencode.v19.annotation_hg19_TRB_genesVJ.bed"
@@ -170,8 +180,8 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 	
 	elif GENE == "TRG":
 		chromGene = chrom+"7"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRGJ.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRGV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRGJ.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRGV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":38292981-38407770"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/gencode.v19.annotation_hg19_TRG_genesVJ.bed"
@@ -181,9 +191,9 @@ def getGeneralInfo(GENE, chrom, genomeVersion, inputsFolder, chrAnnot, annotateS
 
 	elif GENE == "TRD":
 		chromGene = chrom+"14"
-		germline_db_J = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRDJ.fasta.txt"
-		germline_db_D = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRDD.fasta.txt"
-		germline_db_V = inputsFolder+"/igblast/db/"+annotateSeqDB.upper()+"_HomoSapiens_TRDV.fasta.txt"
+		germline_db_J = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRDJ.fasta."+dbSuffix
+		germline_db_D = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRDD.fasta."+dbSuffix
+		germline_db_V = inputsFolder+"/igblast/db/"+dbName+"_HomoSapiens_TRDV.fasta."+dbSuffix
 		if genomeVersion == "hg19":
 			coordsToSubsetLocus = chromGene+":22382239-22948690"
 			bedFile = inputsFolder+"/hg19/"+chrAnnot+"/gencode.v19.annotation_hg19_TRD_genesVJ.bed"
@@ -289,12 +299,23 @@ def convertSamToAnnotatedTable(miniSamT, chromGene, GENE, minimumNumberOfNucleot
 					two2 = [split3[x:x+2] for x in range(0, len(split3),2)]
 					
 					# get if overlapping same base/s at each break point... we substract this overlapping bases on the first break below
-					diffMappingBases = sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - sum([int(i[0]) for i in two1 if "S" in i]) 
-					
-					if len([count for count, item in enumerate(two2) if "S" in item]) == 0: 
-						secpos = sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - 1 
+					cig1 = "MS" if min([count for count, item in enumerate(two1) if "M" in item]) < min([count for count, item in enumerate(two1) if "S" in item]) else "SM"
+					cig2 = "MS" if min([count for count, item in enumerate(two2) if "M" in item]) < min([count for count, item in enumerate(two2) if "S" in item]) else "SM"
+					if cig1 == "MS" and cig2 == "SM":
+						firstScig1 = min([count for count, item in enumerate(two1) if "S" in item])
+						firstMcig2 = min([count for count, item in enumerate(two2) if "M" in item])
+						diffMappingBases = sum([int(i[0]) for i in two1[:firstScig1] if "M" in i or "I" in i]) - sum([int(i[0]) for i in two2[:firstMcig2] if "S" in i])
+					elif cig1 == "SM" and cig2 == "MS":
+						firstMcig1 = min([count for count, item in enumerate(two1) if "M" in item])
+						firstScig2 = min([count for count, item in enumerate(two2) if "S" in item])
+						diffMappingBases = sum([int(i[0]) for i in two2[:firstScig2] if "M" in i or "I" in i]) - sum([int(i[0]) for i in two1[:firstMcig1] if "S" in i])
+					else:
+						diffMappingBases = sum([int(i[0]) for i in two2 if "M" in i or "I" in i]) - sum([int(i[0]) for i in two1 if "S" in i])
+
+					if len([count for count, item in enumerate(two2) if "S" in item]) == 0:
+						secpos = sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - 1
 					elif min([count for count, item in enumerate(two2) if "M" in item]) < min([count for count, item in enumerate(two2) if "S" in item]):
-						secpos = sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - 1 
+						secpos = sum([int(i[0]) for i in two2 if "M" in i or "D" in i]) - 1
 					else:
 						secpos = 0
 						
@@ -419,55 +440,55 @@ def findJandVgenes(annot_table, bedFile, GENE, genomeVersion, annot_table_JV):
 					if GENE == "IGH": # orientation J - V (-)
 						if v[3].startswith("IGHJ"):
 							window1 = 0 if w[11] != "insertSize" else 150 if v[3] == "IGHJ1" else 300
-							window2 = 10
+							window2 = 15
 						else:
-							window1 = 10
+							window1 = 15
 							window2 = 0
 					elif GENE == "IGK": # orientation J - V (-)
 						if v[3].startswith("IGKJ"):
 							window1 = 250 if w[11] == "insertSize" else 0
-							window2 = 10
+							window2 = 15
 						else:
-							window1 = 10
+							window1 = 15
 							window2 = 5 # 5bp added for inversions just after V
 					elif GENE == "IGL": # orientation V - J (+)
 						if v[3].startswith("IGLJ"):
-							window1 = 10
+							window1 = 15
 							window2 = 300 if w[11] == "insertSize" else 0
 						else:
 							window1 = 0
-							window2 = 10
+							window2 = 15
 					elif GENE == "CSR": # class switch
 						window1 = 0
 						window2 = 0
 					elif GENE == "TRA": # orientation V - J (+)
 						if v[3].startswith("TRAJ"):
-							window1 = 10
+							window1 = 15
 							window2 = 150 if w[11] == "insertSize" else 0
 						else:
 							window1 = 0
-							window2 = 10
+							window2 = 15
 					elif GENE == "TRB": # orientation V - J (+) [some V genes in - strand in hg19]
 						if v[3].startswith("TRBJ"):
-							window1 = 10
+							window1 = 15
 							window2 = 50 if w[11] == "insertSize" else 0
 						else:
 							window1 = 0 if genomeVersion == "hg38" else 5
-							window2 = 10
+							window2 = 15
 					elif GENE == "TRG": # orientation J - V (-)
 						if v[3].startswith("TRGJ"):
 							window1 = 300 if w[11] == "insertSize" else 0
-							window2 = 10
+							window2 = 15
 						else:
-							window1 = 10
+							window1 = 15
 							window2 = 0
 					elif GENE == "TRD": # orientation V - J (+)
 						if v[3].startswith("TRDJ"):
-							window1 = 10
+							window1 = 15
 							window2 = 300 if w[11] == "insertSize" else 0
 						else:
 							window1 = 0
-							window2 = 10
+							window2 = 15
 
 					if int(w[j]) >= int(v[1])-window1 and int(w[j]) <= int(v[2])+window2: # we check in which V or J is the position included, considering the defined windows
 						w[j+4] = v[3] # we append the corresponding V or J, 4 positions to the right to our table
@@ -826,8 +847,8 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 					v = k.rstrip("\n").split("\t")
 					if geneJ == v[3]:
 						breakJ = int(v[1]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[2])
-						leftWinJ = breakJ-10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-bpToExtend
-						rightWinJ = int(v[2])+20 if GENE == "IGL" else breakJ+bpToExtend if GENE in ["TRA", "TRB", "TRD"] else breakJ+10 # IGL different due to annotation in GRCh38
+						leftWinJ = breakJ-15 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakJ-bpToExtend
+						rightWinJ = int(v[2])+20 if GENE == "IGL" else breakJ+bpToExtend if GENE in ["TRA", "TRB", "TRD"] else breakJ+15 # IGL different due to annotation in GRCh38
 						potentialBreakJ = i[7] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[5]
 						break
 				VDJ.close()	
@@ -843,18 +864,18 @@ def cleanPositionsAndOccurrences(GENE, bedFile, information, highSensitivity, se
 					if geneV == v[3]:
 						if mechanism == "Deletion":
 							breakV = int(v[2]) if GENE in ["IGL", "TRA", "TRB", "TRD"] else int(v[1])
-							leftWinV = breakV-bpToExtend if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-10
-							rightWinV = breakV+10 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+bpToExtend
+							leftWinV = breakV-bpToExtend if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV-15
+							rightWinV = breakV+15 if GENE in ["IGL", "TRA", "TRB", "TRD"] else breakV+bpToExtend
 							potentialBreakV = i[5] if GENE in ["IGL", "TRA", "TRB", "TRD"] else i[7]
 						elif mechanism == "Inversion1" and GENE == "TRB":
 							breakV = int(v[1])
-							leftWinV = breakV-10
+							leftWinV = breakV-15
 							rightWinV = breakV+bpToExtend
 							potentialBreakV = i[4]				
 						elif mechanism == "Inversion2" and GENE == "IGK":
 							breakV = int(v[2])
 							leftWinV = breakV-bpToExtend
-							rightWinV = breakV+10
+							rightWinV = breakV+15
 							potentialBreakV = i[8]
 						break
 				VDJ.close()
@@ -3131,7 +3152,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 
 		# Run IgBlast
 		igblastn = inputsFolder+"/igblast/"+platformSystem+"/ncbi-igblast-1.22.0/bin/igblastn"
-		aux_data = inputsFolder+"/igblast/"+platformSystem+"/ncbi-igblast-1.22.0/optional_file/human_gl.aux"
+		aux_data = inputsFolder+"/igblast/auxiliary_data/"+("custom_imgt_human_gl.aux" if germline_db_V.split("/")[-1].startswith("IMGT") else "human_gl.aux")
 
 		igblast_out = wkDir+"/tmp/igblast_out.txt"
 
@@ -3191,6 +3212,7 @@ def igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germl
 			if igblastList[1] != "NA":
 				# JDV
 				igBlast_JDV = igblastList[13]+" - "+((igblastList[12]+" - ") if igblastList[12] != "" else "")+igblastList[11]
+				igBlast_JDV = igBlast_JDV.replace("_", " ") # separate allele and gene type with a space (IMGT)
 
 				# CDR3
 				aaCDR3 = igblastList[52]
@@ -3777,8 +3799,8 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 			geneComb = "DV"
 		elif "IGKKde" in firstGene:
 			geneCombKde = "Kde"
-			if "V" in lastGene: geneComb = "JV" # considered also as JV for downstream use
-		elif "IGKRSS" in firstGene and "V" in lastGene:
+			if "V" in lastGene and "Deletion" in trip[item][0]: geneComb = "JV" # considered also as JV for downstream use
+		elif "IGKRSS" in firstGene and "V" in lastGene and "Deletion" in trip[item][0]:
 			geneComb = "JV" # considered as JV for downstream use
 													
 		#### FlagScore = PASS or LowConfidence
@@ -3787,7 +3809,7 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 		#### FlagGene = PASS, RepeatedJunction, RepeatedJV, ExceedsExpectedAllelicDosage
 		##### check junction
 		junc = trip[item][19]
-		if junc in duplicatedJunctions: 
+		if junc in duplicatedJunctions:
 			flagGene = "RepeatedJunction"
 			
 		##### check JV
@@ -3806,7 +3828,7 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 
 		##### append to lists
 		if geneComb != "" and (flagGene == "PASS" or (junc not in dupJunctionsNotExceeding and jvGenes not in dupJVsNotExceeding)): geneCombinationsSeen.append(geneComb)
-		if geneCombKde != "": geneCombinationsKdeSeen.append(geneCombKde)
+		if geneCombKde == "Kde": geneCombinationsKdeSeen.append(geneCombKde)
 		flagGeneList = flagGene.split(",")
 		if "RepeatedJunction" in flagGeneList and not "ExceedsExpectedAllelicDosage" in flagGeneList and junc not in dupJunctionsNotExceeding: dupJunctionsNotExceeding.append(junc)
 		if "RepeatedJV" in flagGeneList and not "ExceedsExpectedAllelicDosage" in flagGeneList and jvGenes not in dupJVsNotExceeding: dupJVsNotExceeding.append(jvGenes)
@@ -3823,7 +3845,7 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 			line = trip[ky]
 			if "Productive" in line[18] or "Potentially productive" in line[18] or line[18] == "Rearrangement without junction coverage" or line[18] == "Complete rearrangement (no junction found)":
 				prodTrip[ky] = line
-			elif reportOnlyProductive == "oof" and line[18] == "Unproductive (stop codons)":
+			elif reportOnlyProductive == "roof" and line[18] == "Unproductive (stop codons)":
 				prodTrip[ky] = line
 		return(prodTrip)
 
@@ -3980,8 +4002,8 @@ def classSwitchAnalysis(wkDir, data, annot_table_JV, bedFile, baseq, chromGene, 
 	
 	return(class_switch, class_switch_filt, reductionMeans)
 
-def getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogSamtools):
-
+def getOncogenicRearrangements(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogSamtools):
+	
 	if genomeVersion == "hg19":
 		chrom14_IGH = [106030000, 107290000] # IGH region 
 		chrom2_IGK = [89131589, 90274600] # IGK region
@@ -4808,7 +4830,7 @@ def getPurity(wkDir, seq, chrom, genomeVersion, inputsFolder, chrAnnot, filterOu
 					if "ExceedsExpectedAllelicDosage" in sList[2]: continue
 					if "RepeatedJunction" in sList[2] and sList[12] in juncsSeen: continue
 					if "RepeatedJunction" in sList[2] and not sList[12] in juncsSeen: juncsSeen.append(sList[12])
-					jvGenes = sList[0].split(" - ")[0].split("*")[0]+" - "+sList[0].split(" - ")[-1].split("*")[0]
+					jvGenes = sList[1].split(" - ")[0].split("*")[0]+" - "+sList[1].split(" - ")[-1].split("*")[0]
 					if "RepeatedJV" in sList[2] and jvGenes in jvsSeen: continue
 					if "RepeatedJV" in sList[2] and not jvGenes in jvsSeen: jvsSeen.append(jvGenes)
 					if sList[11] == "Partial rearrangement":

@@ -157,8 +157,8 @@ parser.add_argument('-aa', '--annotateSeqDB',
 					dest = "annotateSeqDB",
 					action = "store",
 					default = "imgt",
-					choices = ['imgt', 'ogrdb'],
-					help = "Database of sequences to be used by IgBLAST [imgt/ogrdb, default=imgt]. IMGT = release 202643-4 (22 October 2026); OGRDB = release 2026-05-27.")
+					choices = ['imgt', 'imgt_noP', 'ogrdb'],
+					help = "Database of sequences to be used by IgBLAST [imgt/imgt_noP/ogrdb, default=imgt]. imgt = IMGT F+ORF+all P; imgt_noP = IMGT F+ORF; ogrdb = OGRDB. [IMGT release 202643-4 (22 October 2026). OGRDB release 2026-05-27.]")
 
 # CLL-specific annotations:
 parser.add_argument('-subsets', '--subsetsAnnotation',
@@ -320,8 +320,8 @@ parser.add_argument('-rop', '--reportOnlyProductive',
 					dest = "reportOnlyProductive",
 					action = "store",
 					default = "no",
-					choices = ['no', 'oof', 'yes'],
-					help = "Report only productive rearrangements in the 'output_filtered' file [no/oof/yes, defaul=no]. 'no' = report all rearrangements identified. 'oof' means out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements.")
+					choices = ['no', 'roof', 'yes'],
+					help = "Report only productive rearrangements in the 'output_filtered' file [no/roof/yes, defaul=no]. 'no' = report all rearrangements identified. 'roof' means remove out-of-frame and is used to filter out as unproductive only those rearrangements with an out-of-frame junction or, in other words, to report both productive rearrangements and in-frame rearrangements that are unproductive due to stop codons. 'yes' = report only productive rearrangements.")
 
 # Oncogenic rearrangements (i.e., translocations, etc.):
 parser.add_argument('-ror', '--runOncogenicRearrangements',
@@ -595,18 +595,18 @@ errLogSamtools = wkDir+"/tmp/errLogSamtools.txt"
 ## Create mini IG-bam for tumor and normal (if available):
 print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: creating mini BAM files...")
 bamT = wkDir+"/"+originalBamT.split("/")[-1]
-comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamT+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamT+" 2>> "+errLogSamtools  # -F 1024 = read is PCR or optical duplicate
-subprocess.call(comms, shell=True)
+comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamT+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamT  # -F 1024 = read is PCR or optical duplicate
+runBamPreparation(comms, errLogSamtools)
 comms = pathToSamtools+"samtools index -@ "+threadsForSamtools+" "+bamT
-subprocess.call(comms, shell=True)
+runBamPreparation(comms, errLogSamtools)
 bamN = None
 miniBamN = None
 if originalBamN is not None:
 	bamN = wkDir+"/"+originalBamN.split("/")[-1]
-	comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamN+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamN+" 2>> "+errLogSamtools
-	subprocess.call(comms, shell=True)
+	comms = pathToSamtools+"samtools view -h -P -F 1024 -b "+originalBamN+" "+coordsToSubset+" | "+pathToSamtools+"samtools sort -@ "+threadsForSamtools+" -o "+bamN
+	runBamPreparation(comms, errLogSamtools)
 	comms = pathToSamtools+"samtools index -@ "+threadsForSamtools+" "+bamN 
-	subprocess.call(comms, shell=True)
+	runBamPreparation(comms, errLogSamtools)
 
 ## Main output file:
 filterOutputFile = wkDir+"/"+originalBamT.split("/")[-1].replace(".bam", "_output_filtered.tsv")
@@ -741,10 +741,10 @@ if runOnlyOncogenicRearrangements == "no":
 		# 22) Clean intermediate files:
 		subprocess.call("rm "+wkDir+"/tmp/*", shell=True)
 
-# 23) Genome-wide IG/TCR translocations:
+# 23) Genome-wide IG/TCR oncogenic rearrangements:
 if runOncogenicRearrangements == "yes":
 	print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))+" - IgCaller: analyzing genome-wide "+("IG" if geneToAnalyze == "ig" else "TCR" if geneToAnalyze == "tcr" else "IG/TCR")+" rearrangements...")
-	translocationsALL, translocationsPASS = getIgTranslocations(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogSamtools)
+	translocationsALL, translocationsPASS = getOncogenicRearrangements(wkDir, genomeVersion, inputsFolder, pathToSamtools, threadsForSamtools, coordsToSubset, bamT, bamN, chrom, geneToAnalyze, tumorPurity, mntonco, mntoncoPass, vafOnco, mnnonco, mapqOnco, mncPoN, genesOncoIg, customGenesOncoIg, genesOncoIgDistance, customGenesOncoIgDistance, reportReadNames, errLogSamtools)
 
 	Vseq = open(bamT.replace(".bam", "_output_oncogenic_rearrangements.tsv"), "w")
 	Vseq.write("\t".join(["Rearrangement", "Mechanism", "Score", "MQ", "Num_reads", "Read_types", "Depths_and_VAF", "Reads_in_normal", "Count_in_PoN", "Repeat_masker", "Chr_A", "Position_A", "Strand_A", "Chr_B", "Position_B", "Strand_B", "N_nucleotides", "Gene_ID", "Distance_to_gene"])+("" if reportReadNames == "no" else "\tRead_names")+"\n")
