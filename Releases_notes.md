@@ -15,6 +15,7 @@
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
+  * Better handling of input bam files thanks to [pull #2](https://github.com/nadeulab/IgCaller/pull/2).
   * Other minor improvements and edits (virtually) in all functions, including some default arguments.
 * v1.4-beta (not stored as a formal release):
   * Dockerfile and shebang included following [pull #6](https://github.com/ferrannadeu/IgCaller/pull/6).

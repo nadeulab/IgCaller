@@ -211,6 +211,7 @@ The IgCaller repository bundles several third-party packages and reference files
   * Improved annotation of oncogenic alterations, including the identification of N-nucleotides and other improvements (see -vafOnco, -gOnco, -cgOnco, -gOncoDist, and -cgOncoDist for further details).
   * Extended panel of normals for the analysis of oncogenic rearrangements.
   * Added the possibility to report the read names of the reads associated with each specific rearrangement identified (see --rrn).
+  * Better handling of input bam files thanks to [pull #2](https://github.com/nadeulab/IgCaller/pull/2).
   * Other minor improvements and edits (virtually) in all functions, including some default arguments.
 
 For information about previous releases see the [releases notes](Releases_notes.md). Note that some earlier, archived versions of IgCaller can be found in the [old repository](https://github.com/ferrannadeu/IgCaller).
