@@ -3736,17 +3736,11 @@ def predefinedFilter(information, seq, seqDepth, reportOnlyProductive, scoreCuto
 											pr = 1
 										break # force only one match
 
-								#### same V gene, but unproductive
-								elif len(common) == 1 and nw2[-1] == ts2[-1]:
-									functionalityDict = "Productive" if ("Productive" in trip[keys][12] or "Potentially productive" in trip[keys][12]) else "Unproductive"
-									functionalityLine = "Productive" if ("Productive" in line[18] or "Potentially productive" in line[18]) else "Unproductive"
-									##### facilitate to keep the productive one
-									if functionalityLine == "Produtive" and functionalityDict == "Unproductive" and spl_ins >= dict_spl_ins*(1-scoreFraction):
-										del trip[keys]
-									elif functionalityDict == "Produtive" and functionalityLine == "Unproductive" and dict_spl_ins >= spl_ins*(1-scoreFraction):
-										pr = 1
-									##### if both unproductive, keep only one based on score
-									elif functionalityLine == "Unproductive" and functionalityDict == "Unproductive":
+								#### same V gene, different scores, and both unproductive
+								elif len(common) == 1 and nw2[-1] == ts2[-1] and spl_ins < dict_spl_ins*(1-scoreFraction):
+									functionalityDict = "Productive" if ("Productive" in trip[keys][18] or "Potentially productive" in trip[keys][18]) else "Unproductive"
+									functionalityLine = "Productive" if ("Productive" in line[19] or "Potentially productive" in line[19]) else "Unproductive"
+									if functionalityLine == "Unproductive" and functionalityDict == "Unproductive":
 										if spl_ins > dict_spl_ins:
 											del trip[keys]
 										else:

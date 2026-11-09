@@ -33,27 +33,27 @@ parser.add_argument('-I', '--inputsFolder',
 					dest = "inputsFolder",
 					action = "store",
 					required = True,
-					help = "Path to folder containing IgCaller reference files.") 
+					help = "Path to folder containing IgCaller reference files.")
 
 parser.add_argument('-V', '--genomeVersion',
 					dest = "genomeVersion",
 					action = "store",
 					choices = ['hg19', 'hg38'],
 					required = True,
-					help = "Reference genome version [hg19, hg38].") 
+					help = "Reference genome version [hg19, hg38].")
 
 parser.add_argument('-C', '--chromosomeAnnotation',
 					dest = "chrAnnot",
 					action = "store",
 					choices = ['ensembl', 'ucsc'],
 					required = True,
-					help = "Chromosome annotation [ensembl = without 'chr' (i.e. 1); ucsc = with 'chr' (i.e. chr1)].") 
+					help = "Chromosome annotation [ensembl = without 'chr' (i.e. 1); ucsc = with 'chr' (i.e. chr1)].")
 
 parser.add_argument('-T', '--bamT',
 					dest = "bamT",
 					action = "store",
 					required = True,
-					help = "Path to tumor BAM file.") 
+					help = "Path to tumor BAM file.")
 
 parser.add_argument('-seq', '--sequencing',
 					dest = "seq",
@@ -73,20 +73,20 @@ parser.add_argument('-N', '--bamN',
 					dest = "bamN",
 					action = "store",
 					default = None,
-					help = "Path to normal BAM file, if available.") 
+					help = "Path to normal BAM file, if available.")
 
 parser.add_argument('-pm', '--pairedMode',
 					dest = "pairedMode",
 					action = "store",
 					default = None,
 					choices = ['paired', 'unpaired'],
-					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used in all analyses (V(D)J sequence reconstruction to handle SNPs, analysis of CSR, oncogenic rearrangements, and estimation of tumor purity). Unpaired = Normal BAM only used for the analysis of CSR, oncogenic rearrangements, and estimation of tumor purity.") 
+					help = "Tumor and normal paired status [paired/unpaired, default=None]. Need to be specified when bamN is specified. Paired = Normal BAM used in all analyses (V(D)J sequence reconstruction to handle SNPs, analysis of CSR, oncogenic rearrangements, and estimation of tumor purity). Unpaired = Normal BAM only used for the analysis of CSR, oncogenic rearrangements, and estimation of tumor purity.")
 
 parser.add_argument('-R', '--refGenome',
 					dest = "refGenome",
 					action = "store",
 					default = None,
-					help = "Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.") 
+					help = "Path to reference genome FASTA file. Not mandatory, but recommended, when specifying a normal BAM file using the argument 'bamN'. Mandatory when '-bamN' is not specified and when '-seq' is set to 'amplicon'.")
 
 # Gene/receptor to be analyzed:
 parser.add_argument('-g', '--geneToAnalyze',
@@ -94,7 +94,7 @@ parser.add_argument('-g', '--geneToAnalyze',
 					action = "store",
 					choices = ['ig', 'tcr', 'both'],
 					default = "ig",
-					help = "Gene/receptor to be analyzed [ig/tcr/both, default=ig].") 
+					help = "Gene/receptor to be analyzed [ig/tcr/both, default=ig].")
 
 # Amplicon-based sequencing:
 parser.add_argument('-pr', '--primer',
@@ -123,14 +123,14 @@ parser.add_argument('-p', '--tumorPurity',
 					action = "store",
 					default = "1",
 					type = float,
-					help = "Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, assumes 1.") 
+					help = "Purity (or tumor cell contect) of the tumor sample, if known [0-1, default=1]. It is used to adjust the scores and some internal cutoffs during the analysis. If unknown, assumes 1.")
 
 # Output path and options:
 parser.add_argument('-o', '--outputPath',
 					dest = "outputPath",
 					action = "store",
 					default = None,
-					help = "A folder inside this directory will be created with the output [default = current directory].") 
+					help = "A folder inside this directory will be created with the output [default = current directory].")
 
 parser.add_argument('-kmb', '--keepMiniIgBams',
 					dest = "keepMiniIgBams",
@@ -245,14 +245,14 @@ parser.add_argument('-mq', '--mappingQuality',
 					action = "store",
 					default = "0",
 					type = int,
-					help = "Mapping quality cut off to filter out reads for IG/TCR V(D)J reconstruction [default=0].") 
+					help = "Mapping quality cut off to filter out reads for IG/TCR V(D)J reconstruction [default=0].")
 
 parser.add_argument('-bq', '--baseQuality',
 					dest = "baseq",
 					action = "store",
 					default = "13",
 					type = int,
-					help = "Base quality cut off for samtools mpileup for mutation analysis [default=13].") 
+					help = "Base quality cut off for samtools mpileup for mutation analysis [default=13].")
 
 parser.add_argument('-d', '--minDepth',
 					dest = "depth",
@@ -329,21 +329,21 @@ parser.add_argument('-ror', '--runOncogenicRearrangements',
 					action = "store",
 					default = "yes",
 					choices = ['no', 'yes'],
-					help = "Run the analysis of oncogenic IG/TCR rearrangements [yes/no, default=yes].") 
+					help = "Run the analysis of oncogenic IG/TCR rearrangements [yes/no, default=yes].")
 
 parser.add_argument('-roor', '--runOnlyOncogenicRearrangements',
 					dest = "runOnlyOncogenicRearrangements",
 					action = "store",
 					default = "no",
 					choices = ['no', 'yes'],
-					help = "Run only the analysis of oncogenic IG/TCR rearrangements [yes/no, default=no].") 
+					help = "Run only the analysis of oncogenic IG/TCR rearrangements [yes/no, default=no].")
 
 parser.add_argument('-mqOnco', '--mappingQualityOncoIg',
 					dest = "mapqOnco",
 					action = "store",
 					default = "0",
 					type = int,
-					help = "Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=0].") 
+					help = "Mapping quality cut off to filter out reads when analyzing oncogenic IG/TCR rearrangements [default=0].")
 
 parser.add_argument('-mntonco', '--minNumberReadsTumorOncoIg',
 					dest = "mntonco",
@@ -413,14 +413,14 @@ parser.add_argument('-ep', '--estimatePurity',
 					action = "store",
 					default = "yes",
 					choices = ['no', 'yes'],
-					help = "Estimate purity [no/yes, default=yes]. If specified, the purity is estimated based on the IG/TCR rearrangements and reported in the output. It does not effect the scores and internal cutoffs.") 
+					help = "Estimate purity [no/yes, default=yes]. If specified, the purity is estimated based on the IG/TCR rearrangements and reported in the output. It does not effect the scores and internal cutoffs.")
 
 parser.add_argument('-epc', '--estimatePurityCoverage',
 					dest = "estimatePurityCoverage",
 					action = "store",
 					default = "no",
 					choices = ['no', 'yes', 'igh'],
-					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.") 
+					help = "Count gene rearrangements when estimating purity based on drop of coverage even if IgCaller has not called the rearrangement [no/yes/igh, default=no]. 'igh' means only applied to IGH locus.")
 
 parser.add_argument('-ppc', '--plotPurityCoverage',
 					dest = "plotPurityCoverage",
@@ -434,7 +434,7 @@ parser.add_argument('-ptsam', '--pathToSamtools',
 					dest = "pathToSamtools",
 					action = "store",
 					default = "",
-					help = "Path to the directory where samtools is installed. No need to specify it if samtools is found in 'PATH' [default = 'empty', assuming it is in 'PATH'].") 
+					help = "Path to the directory where samtools is installed. No need to specify it if samtools is found in 'PATH' [default = 'empty', assuming it is in 'PATH'].")
 
 parser.add_argument('-@', '--threadsForSamtools',
 					dest = "threadsForSamtools",
@@ -687,7 +687,7 @@ if runOnlyOncogenicRearrangements == "no":
 			# 14) Collapse rearrangements with similar nucleotide sequences and junction:
 			if collapseSequences == "yes": information = doCollapseSequences(information, collapseSequencesSimilarity, GENE)
 			if GENE == "IGH" and collapseSameJunction == "yes": information = doCollapseSameJunction(information, miniBamT, annot_table_JV, minimumNumberOfNucleotidesSoft, chrom, mapq, pathToSamtools, threadsForSamtools)
-
+			
 			# 15) Check homology and functionality (productive/unproductive):
 			information = checkHomologyAndFunctionality(information, GENE) if annotateSeq == "builtin" else igBlastAnnotate(information, GENE, wkDir, inputsFolder, germline_db_J, germline_db_D, germline_db_V, seq, primer, primerStringency, primerFasta, agsAnnotation)
 			
